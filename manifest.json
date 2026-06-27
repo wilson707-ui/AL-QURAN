@@ -1,0 +1,9 @@
+{
+  "short_name": "المصحف",
+  "name": "القرآن الكريم - المصحف الشريف",
+  "start_url": "./index.html",
+  "background_color": "#0f1410",
+  "theme-color": "#0f1410",
+  "display": "standalone",
+  "orientation": "portrait"
+}
