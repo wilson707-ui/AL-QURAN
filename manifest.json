@@ -1,9 +1,24 @@
 {
+  "name": "المصحف الشريف",
   "short_name": "المصحف",
-  "name": "القرآن الكريم - المصحف الشريف",
-  "start_url": "./index.html",
-  "background_color": "#0f1410",
-  "theme-color": "#0f1410",
+  "description": "تطبيق المصحف الشريف للقراءة والاستماع بدون إعلانات",
+  "start_url": "https://wilson707-ui.github.io/AL-QURAN/",
   "display": "standalone",
-  "orientation": "portrait"
+  "background_color": "#ffffff",
+  "theme_color": "#1f2937",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2913/2913521.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/192/2913/2913521.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
