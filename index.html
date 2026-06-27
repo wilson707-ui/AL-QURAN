@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>القرآن الكريم - المصحف</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0f1410" />
+    <style>
+      :root {
+        --bg: #0f1410;
+        --bg-elevated: #161d17;
+        --ink: #e9e4d4;
+        --ink-dim: #9aa394;
+        --gold: #c9a356;
+        --gold-soft: #8a7440;
+        --line: #2a322a;
+        --page-bg: #fdf8ec;
+        --page-border: #d4c5a0;
+        --page-ink: #1a1208;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Tajawal", "Segoe UI", system-ui, sans-serif;
+        min-height: 100vh;
+      }
+
+      #app {
+        max-width: 720px;
+        margin: 0 auto;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ===== Top bar ===== */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        background: var(--bg);
+        z-index: 10;
+      }
+
+      .topbar h1 {
+        font-size: 16px;
+        margin: 0;
+        color: var(--gold);
+        font-weight: 600;
+      }
+
+      .topbar .surah-info {
+        font-size: 12px;
+        color: var(--ink-dim);
+      }
+
+      .icon-btn {
+        background: var(--bg-elevated);
+        border: 1px solid var(--line);
+        color: var(--ink);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: border-color 0.2s;
+        flex-shrink: 0;
+      }
+
+      .icon-btn:hover {
+        border-color: var(--gold-soft);
+      }
+      .icon-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+      .icon-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      /* ===== Page viewer ===== */
+      .page-wrap {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 18px 14px 10px;
+      }
+
+      .mushaf-page {
+        background: var(--page-bg);
+        border: 1px solid var(--page-border);
+        border-radius: 6px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 480px;
+        padding: 22px 18px 16px;
+        color: var(--page-ink);
+      }
+
+      .page-number-badge {
+        text-align: center;
+        font-size: 11px;
+        color: #8a7a55;
+        margin-bottom: 14px;
+        letter-spacing: 1px;
+      }
+
+      .mushaf-line {
+        display: flex;
+        justify-content: center;
+        align-items: baseline;
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        font-size: 21px;
+        line-height: 2.35;
+        direction: rtl;
+      }
+
+      .mushaf-header-line {
+        text-align: center;
+        font-size: 19px;
+        color: #8a7440;
+        margin: 4px 0;
+      }
+
+      .mushaf-word {
+        display: inline-block;
+      }
+
+      /* ===== Status / loading ===== */
+      .status-msg {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--ink-dim);
+        font-size: 14px;
+      }
+
+      .spinner {
+        width: 28px;
+        height: 28px;
+        border: 2px solid var(--line);
+        border-top-color: var(--gold);
+        border-radius: 50%;
+        margin: 0 auto 14px;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ===== Bottom nav ===== */
+      .bottom-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 14px 18px 22px;
+      }
+
+      .nav-btn {
+        background: var(--bg-elevated);
+        border: 1px solid var(--line);
+        color: var(--ink);
+        padding: 10px 20px;
+        border-radius: 24px;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: border-color 0.2s;
+      }
+
+      .nav-btn:hover {
+        border-color: var(--gold-soft);
+      }
+      .nav-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+      .nav-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .page-jump {
+        background: var(--bg-elevated);
+        border: 1px solid var(--line);
+        color: var(--ink);
+        padding: 10px 14px;
+        border-radius: 24px;
+        font-size: 13px;
+        width: 70px;
+        text-align: center;
+        font-family: inherit;
+      }
+
+      .page-jump:focus {
+        outline: none;
+        border-color: var(--gold-soft);
+      }
+
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--line);
+        border-radius: 4px;
+      }
+
+      /* ===== Initial full download screen ===== */
+      .download-screen {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 24px;
+        text-align: center;
+      }
+
+      .download-ornament {
+        width: 56px;
+        height: 56px;
+        margin-bottom: 18px;
+        opacity: 0.9;
+      }
+
+      .download-screen h2 {
+        color: var(--gold);
+        font-size: 20px;
+        margin: 0 0 8px;
+      }
+
+      .download-screen p {
+        color: var(--ink-dim);
+        font-size: 13px;
+        margin: 0 0 28px;
+        max-width: 280px;
+        line-height: 1.7;
+      }
+
+      .download-progress-bar {
+        width: 100%;
+        max-width: 280px;
+        height: 8px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        overflow: hidden;
+        margin-bottom: 10px;
+      }
+
+      .download-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--gold-soft), var(--gold));
+        width: 0%;
+        transition: width 0.2s ease;
+      }
+
+      .download-progress-text {
+        color: var(--ink-dim);
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      .download-progress-detail {
+        color: var(--ink-dim);
+        font-size: 11px;
+        opacity: 0.7;
+      }
+
+      .download-error-box {
+        margin-top: 20px;
+        padding: 14px 18px;
+        background: var(--bg-elevated);
+        border: 1px solid #6b3a3a;
+        border-radius: 10px;
+        color: #e0a0a0;
+        font-size: 13px;
+        max-width: 280px;
+      }
+
+      .retry-btn {
+        margin-top: 14px;
+        background: var(--gold-soft);
+        color: var(--bg);
+        border: none;
+        padding: 10px 24px;
+        border-radius: 24px;
+        font-family: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      @media (max-width: 420px) {
+        .mushaf-line {
+          font-size: 17px;
+        }
+        .mushaf-header-line {
+          font-size: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <script>
+      const RAW_BASE =
+        "https://raw.githubusercontent.com/MohamadHajjRabee/quran-qcf4/main";
+      const FONT_CDN =
+        "https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main/fonts-woff2";
+      const TOTAL_PAGES = 604;
+
+      let currentPage = 1;
+      const pageCache = {};
+      const loadedFonts = new Set();
+
+      const app = document.getElementById("app");
+
+      function backIconSVG() {
+        return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>`;
+      }
+
+      function forwardIconSVG() {
+        return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>`;
+      }
+
+      function renderShell() {
+        app.innerHTML = `
+    <div class="topbar">
+      <button class="icon-btn" id="prevBtn" title="السابق">${forwardIconSVG()}</button>
+      <div style="text-align:center;">
+        <h1 id="surahTitle">القرآن الكريم</h1>
+        <div class="surah-info" id="surahInfo">جاري التحميل...</div>
+      </div>
+      <button class="icon-btn" id="nextBtn" title="التالي">${backIconSVG()}</button>
+    </div>
+    <div class="page-wrap" id="pageWrap">
+      <div class="status-msg"><div class="spinner"></div>تحميل الصفحة...</div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-btn" id="prevBtn2">${forwardIconSVG()}<span>السابقة</span></button>
+      <input type="number" class="page-jump" id="pageJump" min="1" max="${TOTAL_PAGES}" value="1">
+      <button class="nav-btn" id="nextBtn2"><span>التالية</span>${backIconSVG()}</button>
+    </div>
+  `;
+
+        document
+          .getElementById("prevBtn")
+          .addEventListener("click", () => goToPage(currentPage - 1));
+        document
+          .getElementById("nextBtn")
+          .addEventListener("click", () => goToPage(currentPage + 1));
+        document
+          .getElementById("prevBtn2")
+          .addEventListener("click", () => goToPage(currentPage - 1));
+        document
+          .getElementById("nextBtn2")
+          .addEventListener("click", () => goToPage(currentPage + 1));
+        document.getElementById("pageJump").addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            const val = parseInt(e.target.value);
+            if (val >= 1 && val <= TOTAL_PAGES) goToPage(val);
+          }
+        });
+      }
+
+      function pad3(n) {
+        return String(n).padStart(3, "0");
+      }
+
+      function downloadOrnamentSVG() {
+        return `<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="28" cy="28" r="26" stroke="#c9a356" stroke-width="1" opacity="0.5"/>
+    <circle cx="28" cy="28" r="19" stroke="#c9a356" stroke-width="1" opacity="0.7"/>
+    <path d="M28 6 L31 22 L47 25 L31 28 L28 44 L25 28 L9 25 L25 22 Z" fill="#c9a356" opacity="0.85"/>
+  </svg>`;
+      }
+
+      const ALL_FONT_NAMES = (() => {
+        const names = ["QCF4_QBSML"];
+        for (let i = 1; i <= 47 - 1; i++) {
+          names.push(`QCF4_Hafs_${String(i).padStart(2, "0")}`);
+        }
+        return names;
+      })();
+
+      function renderDownloadScreen() {
+        app.innerHTML = `
+    <div class="download-screen" id="downloadScreen">
+      <div class="download-ornament">${downloadOrnamentSVG()}</div>
+      <h2>تحميل المصحف الشريف</h2>
+      <p>يتم الآن تحميل كل صفحات المصحف لمرة واحدة فقط، بعدها يعمل التطبيق بالكامل بدون إنترنت.</p>
+      <div class="download-progress-bar"><div class="download-progress-fill" id="progFill"></div></div>
+      <div class="download-progress-text" id="progText">0 / ${TOTAL_PAGES} صفحة</div>
+      <div class="download-progress-detail" id="progDetail">جاري تحميل الخطوط...</div>
+    </div>
+  `;
+      }
+
+      function showDownloadError(message) {
+        const screen = document.getElementById("downloadScreen");
+        const existing = screen.querySelector(".download-error-box");
+        if (existing) existing.remove();
+        const box = document.createElement("div");
+        box.className = "download-error-box";
+        box.innerHTML = `${message}<br><button class="retry-btn" id="retryBtn">إعادة المحاولة</button>`;
+        screen.appendChild(box);
+        document
+          .getElementById("retryBtn")
+          .addEventListener("click", startFullDownload);
+      }
+
+      async function startFullDownload() {
+        renderDownloadScreen();
+        const progFill = document.getElementById("progFill");
+        const progText = document.getElementById("progText");
+        const progDetail = document.getElementById("progDetail");
+
+        try {
+          // الخطوة 1: تحميل كل الخطوط (47 خط + خط العناوين)
+          progDetail.textContent = "جاري تحميل الخطوط...";
+          for (const fontName of ALL_FONT_NAMES) {
+            await ensureFontLoaded(fontName);
+          }
+
+          // الخطوة 2: تحميل بيانات كل صفحة (604 صفحة)، على دفعات لتجنب إغراق الشبكة
+          progDetail.textContent = "جاري تحميل صفحات المصحف...";
+          const BATCH_SIZE = 10;
+          let completed = 0;
+
+          for (let start = 1; start <= TOTAL_PAGES; start += BATCH_SIZE) {
+            const batch = [];
+            for (
+              let p = start;
+              p < Math.min(start + BATCH_SIZE, TOTAL_PAGES + 1);
+              p++
+            ) {
+              batch.push(fetchPageData(p));
+            }
+            await Promise.all(batch);
+            completed += batch.length;
+            const percent = Math.round((completed / TOTAL_PAGES) * 100);
+            progFill.style.width = `${percent}%`;
+            progText.textContent = `${completed} / ${TOTAL_PAGES} صفحة`;
+          }
+
+          progDetail.textContent = "اكتمل التحميل، جاري فتح المصحف...";
+          await new Promise((r) => setTimeout(r, 400));
+
+          // تم التحميل بنجاح، الآن نعرض التطبيق نفسه
+          localStorage.setItem("quran_fully_downloaded", "true");
+          renderShell();
+          goToPage(1);
+        } catch (err) {
+          progDetail.textContent = "";
+          showDownloadError(
+            "تعذّر إكمال التحميل. تحقق من اتصال الإنترنت ثم حاول مرة أخرى."
+          );
+        }
+      }
+
+      // تسجيل Service Worker لتفعيل القراءة بدون إنترنت
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      }
+
+      // إذا سبق واكتمل التحميل الكامل، نفتح المصحف مباشرة بدون إعادة التحميل
+      if (localStorage.getItem("quran_fully_downloaded") === "true") {
+        renderShell();
+        goToPage(1);
+      } else {
+        startFullDownload();
+      }
+
+      async function ensureFontLoaded(fontName) {
+        if (loadedFonts.has(fontName)) return;
+        // ملف خط عناوين السور (QBSML) لا يحتوي على لاحقة "_W" في اسمه، عكس باقي الخطوط
+        const fileSuffix = fontName === "QCF4_QBSML" ? "" : "_W";
+        const style = document.createElement("style");
+        style.textContent = `
+    @font-face {
+      font-family: '${fontName}';
+      src: url('${FONT_CDN}/${fontName}${fileSuffix}.woff2') format('woff2');
+      font-display: swap;
+    }
+  `;
+        document.head.appendChild(style);
+        loadedFonts.add(fontName);
+        try {
+          await document.fonts.load(`20px ${fontName}`);
+        } catch (e) {
+          // تجاهل أخطاء تحميل الخط الفردية، المتصفح سيعيد المحاولة عند العرض
+        }
+      }
+
+      async function fetchPageData(pageNum) {
+        if (pageCache[pageNum]) return pageCache[pageNum];
+        const res = await fetch(`${RAW_BASE}/pages/${pad3(pageNum)}.json`);
+        if (!res.ok) throw new Error("فشل تحميل الصفحة");
+        const data = await res.json();
+        pageCache[pageNum] = data;
+        return data;
+      }
+
+      function codeToChar(code) {
+        return String.fromCharCode(code);
+      }
+
+      async function goToPage(pageNum) {
+        if (pageNum < 1 || pageNum > TOTAL_PAGES) return;
+        currentPage = pageNum;
+        document.getElementById("pageJump").value = pageNum;
+        document.getElementById("prevBtn").disabled = pageNum <= 1;
+        document.getElementById("nextBtn").disabled = pageNum >= TOTAL_PAGES;
+        document.getElementById("prevBtn2").disabled = pageNum <= 1;
+        document.getElementById("nextBtn2").disabled = pageNum >= TOTAL_PAGES;
+
+        const pageWrap = document.getElementById("pageWrap");
+        pageWrap.innerHTML = `<div class="status-msg"><div class="spinner"></div>تحميل الصفحة ${pageNum}...</div>`;
+
+        try {
+          const data = await fetchPageData(pageNum);
+
+          // تحميل كل الخطوط المطلوبة لهذه الصفحة
+          const fontsNeeded = new Set();
+          data.lines.forEach((line) => {
+            line.words.forEach((w) => fontsNeeded.add(w.font));
+          });
+          await Promise.all(Array.from(fontsNeeded).map(ensureFontLoaded));
+
+          renderPage(data);
+
+          // تحديث عنوان السورة (آخر سورة تبدأ أو تظهر بهذه الصفحة)
+          if (data.surahs && data.surahs.length > 0) {
+            const surah = data.surahs[0];
+            document.getElementById("surahTitle").textContent =
+              surah.name_arabic;
+            document.getElementById(
+              "surahInfo"
+            ).textContent = `صفحة ${pageNum}`;
+          } else {
+            document.getElementById("surahTitle").textContent = "القرآن الكريم";
+            document.getElementById(
+              "surahInfo"
+            ).textContent = `صفحة ${pageNum}`;
+          }
+
+          window.scrollTo(0, 0);
+        } catch (err) {
+          const isOffline = !navigator.onLine;
+          const message = isOffline
+            ? `أنت غير متصل بالإنترنت، وهذه الصفحة (${pageNum}) لم تُفتح من قبل لتُحفظ. افتحها مرة واحدة وأنت متصل، وبعدها تصبح متاحة بدون نت.`
+            : `تعذّر تحميل الصفحة ${pageNum}. تحقق من اتصال الإنترنت وحاول مرة أخرى.`;
+          pageWrap.innerHTML = `<div class="status-msg">${message}</div>`;
+        }
+      }
+
+      function renderPage(data) {
+        const pageWrap = document.getElementById("pageWrap");
+        let linesHtml = "";
+
+        data.lines.forEach((line) => {
+          const isHeader =
+            line.words.length > 0 && line.words[0].type === "surah_header";
+          const rowClass = isHeader ? "mushaf-header-line" : "mushaf-line";
+          linesHtml += `<div class="${rowClass}">`;
+          line.words.forEach((w) => {
+            const ch = w.char || codeToChar(w.code);
+            linesHtml += `<span class="mushaf-word" style="font-family:'${w.font}'">${ch}</span>`;
+          });
+          linesHtml += `</div>`;
+        });
+
+        pageWrap.innerHTML = `
+    <div class="mushaf-page">
+      <div class="page-number-badge">صفحة ${data.page}</div>
+      ${linesHtml}
+    </div>
+  `;
+      }
+
+      // ملاحظة: بدء التطبيق الآن يتم تلقائياً أسفل الملف بعد فحص حالة التحميل الكامل
+    </script>
+  </body>
+</html>
