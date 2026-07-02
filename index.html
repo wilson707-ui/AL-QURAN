@@ -1,617 +1,639 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>القرآن الكريم - المصحف</title>
-    <link rel="manifest" href="manifest.json" />
-    <meta name="theme-color" content="#0f1410" />
-    <style>
-      :root {
-        --bg: #0f1410;
-        --bg-elevated: #161d17;
-        --ink: #e9e4d4;
-        --ink-dim: #9aa394;
-        --gold: #c9a356;
-        --gold-soft: #8a7440;
-        --line: #2a322a;
-        --page-bg: #fdf8ec;
-        --page-border: #d4c5a0;
-        --page-ink: #1a1208;
-      }
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>القرآن الكريم - المصحف</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1410">
+<style>
+  :root {
+    --bg:#0f1410; --bg-elevated:#161d17; --ink:#e9e4d4; --ink-dim:#9aa394;
+    --gold:#c9a356; --gold-soft:#8a7440; --line:#2a322a;
+    --page-bg:#fdf8ec; --page-border:#d4c5a0; --page-ink:#1a1208;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'Tajawal','Segoe UI',system-ui,sans-serif;min-height:100vh;}
+  #app{max-width:720px;width:100%;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:10;}
+  .topbar h1{font-size:16px;margin:0;color:var(--gold);font-weight:600;}
+  .topbar .surah-info{font-size:12px;color:var(--ink-dim);}
+  .icon-btn{background:var(--bg-elevated);border:1px solid var(--line);color:var(--ink);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .2s;flex-shrink:0;}
+  .icon-btn:hover{border-color:var(--gold-soft);} .icon-btn:disabled{opacity:.3;cursor:default;} .icon-btn svg{width:18px;height:18px;}
+  /* شريط التلاوة */
+  .audio-bar{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg-elevated);flex-wrap:wrap;}
+  .audio-btn{background:transparent;border:1px solid var(--gold-soft);color:var(--gold);padding:7px 14px;border-radius:20px;cursor:pointer;font-family:inherit;font-size:13px;display:flex;align-items:center;gap:5px;transition:all .2s;}
+  .audio-btn:hover{background:rgba(201,163,86,.15);}
+  .audio-btn.playing{background:var(--gold);color:#1a1208;border-color:var(--gold);}
+  .audio-btn svg{width:13px;height:13px;}
+  .reciter-select{background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:7px 10px;border-radius:20px;font-family:inherit;font-size:12px;}
+  .reciter-select:focus{outline:none;border-color:var(--gold-soft);}
+  .audio-status{font-size:11px;color:var(--ink-dim);min-width:60px;text-align:center;}
+  /* صفحة */
+  .page-wrap{flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 8px 10px;width:100%;}
+  .mushaf-page{background:var(--page-bg);border:1px solid var(--page-border);border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.3);width:100%;max-width:600px;padding:20px 14px 16px;color:var(--page-ink);overflow:hidden;}
+  .page-number-badge{text-align:center;font-size:12px;color:#8a7a55;margin-bottom:14px;letter-spacing:1px;}
+  .mushaf-line{display:flex;justify-content:center;align-items:baseline;flex-wrap:nowrap;white-space:nowrap;font-size:5vw;line-height:2.3;direction:rtl;}
+  .mushaf-header-line{text-align:center;font-size:4.5vw;color:#8a7440;margin:4px 0;}
+  .mushaf-word{display:inline-block;}
+  @media(min-width:560px){.mushaf-line{font-size:22px;}.mushaf-header-line{font-size:19px;}}
+  .clickable-word{cursor:pointer;transition:color .15s;border-radius:3px;}
+  .clickable-word:hover{color:#8a6a1f;background:rgba(138,116,64,.12);}
+  .clickable-word.word-playing{background:rgba(201,163,86,.45)!important;color:#4a2800!important;}
+  .tafsir-box{margin-top:16px;padding:14px 16px;background:#f3ead2;border-right:3px solid #8a7440;border-radius:8px;font-size:14px;line-height:1.9;color:#4a3f28;font-family:'Tajawal',sans-serif;text-align:right;direction:rtl;display:none;}
+  .tafsir-box.open{display:block;}
+  .tafsir-box .tafsir-label{display:block;color:#8a7440;font-size:12px;margin-bottom:8px;font-weight:700;}
+  .tafsir-loading{color:#8a7440;font-size:13px;}
+  .status-msg{text-align:center;padding:60px 20px;color:var(--ink-dim);font-size:14px;}
+  .spinner{width:28px;height:28px;border:2px solid var(--line);border-top-color:var(--gold);border-radius:50%;margin:0 auto 14px;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .bottom-nav{display:flex;align-items:center;justify-content:center;gap:18px;padding:14px 18px 22px;}
+  .nav-btn{background:var(--bg-elevated);border:1px solid var(--line);color:var(--ink);padding:10px 20px;border-radius:24px;cursor:pointer;font-family:inherit;font-size:14px;display:flex;align-items:center;gap:6px;transition:border-color .2s;}
+  .nav-btn:hover{border-color:var(--gold-soft);} .nav-btn:disabled{opacity:.3;cursor:default;} .nav-btn svg{width:16px;height:16px;}
+  .page-jump{background:var(--bg-elevated);border:1px solid var(--line);color:var(--ink);padding:10px 14px;border-radius:24px;font-size:13px;width:70px;text-align:center;font-family:inherit;}
+  .page-jump:focus{outline:none;border-color:var(--gold-soft);}
+  ::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+  .download-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px;text-align:center;}
+  .download-ornament{width:56px;height:56px;margin-bottom:18px;opacity:.9;}
+  .download-screen h2{color:var(--gold);font-size:20px;margin:0 0 8px;}
+  .download-screen p{color:var(--ink-dim);font-size:13px;margin:0 0 28px;max-width:280px;line-height:1.7;}
+  .download-progress-bar{width:100%;max-width:280px;height:8px;background:var(--bg-elevated);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:10px;}
+  .download-progress-fill{height:100%;background:linear-gradient(90deg,var(--gold-soft),var(--gold));width:0%;transition:width .2s ease;}
+  .download-progress-text{color:var(--ink-dim);font-size:13px;margin-bottom:4px;}
+  .download-progress-detail{color:var(--ink-dim);font-size:11px;opacity:.7;}
+  .download-error-box{margin-top:20px;padding:14px 18px;background:var(--bg-elevated);border:1px solid #6b3a3a;border-radius:10px;color:#e0a0a0;font-size:13px;max-width:280px;}
+  .retry-btn{margin-top:14px;background:var(--gold-soft);color:var(--bg);border:none;padding:10px 24px;border-radius:24px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:600;}
 
-      * {
-        box-sizing: border-box;
-      }
+  /* ===== شاشة الإعدادات ===== */
+  .settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:flex-end;justify-content:center;}
+  .settings-panel{background:var(--bg-elevated);border-radius:20px 20px 0 0;width:100%;max-width:720px;padding:24px 20px 36px;max-height:85vh;overflow-y:auto;}
+  .settings-title{color:var(--gold);font-size:16px;font-weight:700;margin:0 0 20px;text-align:center;}
+  .settings-section{margin-bottom:24px;}
+  .settings-section-label{color:var(--ink-dim);font-size:11px;letter-spacing:1px;margin-bottom:10px;display:block;}
+  .reciter-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:12px;margin-bottom:8px;}
+  .reciter-row-name{font-size:14px;color:var(--ink);}
+  .reciter-row-name.active{color:var(--gold);font-weight:600;}
+  .dl-btn{background:transparent;border:1px solid var(--gold-soft);color:var(--gold);padding:6px 12px;border-radius:16px;cursor:pointer;font-family:inherit;font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:all .2s;}
+  .dl-btn:hover{background:rgba(201,163,86,.15);}
+  .dl-btn.downloaded{border-color:#3a6b3a;color:#6bc96b;cursor:default;}
+  .dl-btn.downloading{border-color:var(--gold);color:var(--gold);cursor:default;opacity:.7;}
+  .dl-progress{font-size:11px;color:var(--ink-dim);margin-top:4px;display:none;}
+  .dl-progress.show{display:block;}
+  .settings-close{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:12px;border-radius:12px;cursor:pointer;font-family:inherit;font-size:14px;margin-top:8px;}
+  .settings-close:hover{border-color:var(--gold-soft);}
+  .tafsir-dl-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:12px;}
 
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        background: var(--bg);
-        color: var(--ink);
-        font-family: "Tajawal", "Segoe UI", system-ui, sans-serif;
-        min-height: 100vh;
-      }
+  /* ===== الثيمات ===== */
+  body.theme-pink {
+    --bg:#1a0d12; --bg-elevated:#241318; --ink:#f0dde4; --ink-dim:#b08a92;
+    --gold:#e8829a; --gold-soft:#a85068; --line:#3d1e26;
+    --page-bg:#fff5f7; --page-border:#f0c0cc; --page-ink:#2a0d14;
+  }
+  body.theme-blue {
+    --bg:#0d1320; --bg-elevated:#131c2e; --ink:#dde4f5; --ink-dim:#7a90b8;
+    --gold:#6a9fd8; --gold-soft:#3a6499; --line:#1e2d4a;
+    --page-bg:#f2f6ff; --page-border:#b8ccee; --page-ink:#0d1a35;
+  }
+  body.theme-green {
+    --bg:#0d1a0f; --bg-elevated:#132014; --ink:#d8eeda; --ink-dim:#7aaa82;
+    --gold:#5dbf6e; --gold-soft:#348044; --line:#1e3d22;
+    --page-bg:#f2fff4; --page-border:#b0ddb8; --page-ink:#0d2210;
+  }
+  body.theme-sky {
+    --bg:#0c1820; --bg-elevated:#12202c; --ink:#d8eef8; --ink-dim:#7aacc8;
+    --gold:#4db8e0; --gold-soft:#2888aa; --line:#1c3444;
+    --page-bg:#f0faff; --page-border:#a8d8ee; --page-ink:#0c1e2c;
+  }
+  .theme-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:12px;margin-bottom:8px;}
+  .theme-btns{display:flex;gap:8px;}
+  .theme-dot{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s;flex-shrink:0;}
+  .theme-dot:hover{transform:scale(1.15);}
+  .theme-dot.active{border-color:var(--ink);transform:scale(1.15);}
+  .theme-dot.t-default{background:radial-gradient(circle at 40% 40%,#c9a356,#2a322a);}
+  .theme-dot.t-pink{background:radial-gradient(circle at 40% 40%,#e8829a,#3d1e26);}
+  .theme-dot.t-blue{background:radial-gradient(circle at 40% 40%,#6a9fd8,#1e2d4a);}
+  .theme-dot.t-green{background:radial-gradient(circle at 40% 40%,#5dbf6e,#1e3d22);}
+  .theme-dot.t-sky{background:radial-gradient(circle at 40% 40%,#4db8e0,#1c3444);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const RAW_BASE='https://raw.githubusercontent.com/MohamadHajjRabee/quran-qcf4/main';
+const FONT_CDN='https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main/fonts-woff2';
+const TAFSIR_BASE='https://api.alquran.cloud/v1';
+const TAFSIR_EDITION='ar.muyassar';
+const TOTAL_PAGES=604;
 
-      #app {
-        max-width: 720px;
-        margin: 0 auto;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
+/* =====================================================
+   الصوت — everyayah.com (مضمون ويدعم آية بآية)
+   رابط كل آية: https://everyayah.com/data/{folder}/{sss}{aaa}.mp3
+   ===================================================== */
+// ayahByAyah: true  = يشغّل آية بآية من everyayah.com
+// ayahByAyah: false = يشغّل السورة كاملة من mp3quran.net (إسلام صبحي)
+const RECITERS=[
+  {id:'Alafasy_128kbps',              name:'مشاري العفاسي',      ayahByAyah:true},
+  {id:'Abdul_Basit_Murattal_192kbps', name:'عبدالباسط عبدالصمد', ayahByAyah:true},
+  {id:'Hudhaify_128kbps',             name:'علي الحذيفي',         ayahByAyah:true},
+  {id:'Mohammad_al_Tablaway_128kbps', name:'محمد الطبلاوي',       ayahByAyah:true},
+  {id:'islam',                        name:'إسلام صبحي ★',        ayahByAyah:false,
+   surahUrl: s => `https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3,'0')}.mp3`},
+];
+const AUDIO_BASE='https://everyayah.com/data';
+let currentReciterId=localStorage.getItem('quran_reciter')||RECITERS[0].id;
 
-      /* ===== Top bar ===== */
-      .topbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 14px 18px;
-        border-bottom: 1px solid var(--line);
-        position: sticky;
-        top: 0;
-        background: var(--bg);
-        z-index: 10;
-      }
+let audioEl=null,isPlayingPage=false,pageQueue=[],pageQueueIdx=0,activeVerseKey=null;
+const app=document.getElementById('app');
 
-      .topbar h1 {
-        font-size: 16px;
-        margin: 0;
-        color: var(--gold);
-        font-weight: 600;
-      }
+const SVG={
+  back:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`,
+  fwd:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
+  play:`<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>`,
+  stop:`<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="1"/></svg>`,
+  gear:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+};
 
-      .topbar .surah-info {
-        font-size: 12px;
-        color: var(--ink-dim);
-      }
+function ayahAudioUrl(s,a){
+  return `${AUDIO_BASE}/${currentReciterId}/${String(s).padStart(3,'0')}${String(a).padStart(3,'0')}.mp3`;
+}
 
-      .icon-btn {
-        background: var(--bg-elevated);
-        border: 1px solid var(--line);
-        color: var(--ink);
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: border-color 0.2s;
-        flex-shrink: 0;
-      }
-
-      .icon-btn:hover {
-        border-color: var(--gold-soft);
-      }
-      .icon-btn:disabled {
-        opacity: 0.3;
-        cursor: default;
-      }
-      .icon-btn svg {
-        width: 18px;
-        height: 18px;
-      }
-
-      /* ===== Page viewer ===== */
-      .page-wrap {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 18px 14px 10px;
-      }
-
-      .mushaf-page {
-        background: var(--page-bg);
-        border: 1px solid var(--page-border);
-        border-radius: 6px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        width: 100%;
-        max-width: 480px;
-        padding: 22px 18px 16px;
-        color: var(--page-ink);
-      }
-
-      .page-number-badge {
-        text-align: center;
-        font-size: 11px;
-        color: #8a7a55;
-        margin-bottom: 14px;
-        letter-spacing: 1px;
-      }
-
-      .mushaf-line {
-        display: flex;
-        justify-content: center;
-        align-items: baseline;
-        flex-wrap: nowrap;
-        white-space: nowrap;
-        font-size: 21px;
-        line-height: 2.35;
-        direction: rtl;
-      }
-
-      .mushaf-header-line {
-        text-align: center;
-        font-size: 19px;
-        color: #8a7440;
-        margin: 4px 0;
-      }
-
-      .mushaf-word {
-        display: inline-block;
-      }
-
-      /* ===== Status / loading ===== */
-      .status-msg {
-        text-align: center;
-        padding: 60px 20px;
-        color: var(--ink-dim);
-        font-size: 14px;
-      }
-
-      .spinner {
-        width: 28px;
-        height: 28px;
-        border: 2px solid var(--line);
-        border-top-color: var(--gold);
-        border-radius: 50%;
-        margin: 0 auto 14px;
-        animation: spin 0.8s linear infinite;
-      }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      /* ===== Bottom nav ===== */
-      .bottom-nav {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 18px;
-        padding: 14px 18px 22px;
-      }
-
-      .nav-btn {
-        background: var(--bg-elevated);
-        border: 1px solid var(--line);
-        color: var(--ink);
-        padding: 10px 20px;
-        border-radius: 24px;
-        cursor: pointer;
-        font-family: inherit;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: border-color 0.2s;
-      }
-
-      .nav-btn:hover {
-        border-color: var(--gold-soft);
-      }
-      .nav-btn:disabled {
-        opacity: 0.3;
-        cursor: default;
-      }
-      .nav-btn svg {
-        width: 16px;
-        height: 16px;
-      }
-
-      .page-jump {
-        background: var(--bg-elevated);
-        border: 1px solid var(--line);
-        color: var(--ink);
-        padding: 10px 14px;
-        border-radius: 24px;
-        font-size: 13px;
-        width: 70px;
-        text-align: center;
-        font-family: inherit;
-      }
-
-      .page-jump:focus {
-        outline: none;
-        border-color: var(--gold-soft);
-      }
-
-      ::-webkit-scrollbar {
-        width: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: var(--line);
-        border-radius: 4px;
-      }
-
-      /* ===== Initial full download screen ===== */
-      .download-screen {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 30px 24px;
-        text-align: center;
-      }
-
-      .download-ornament {
-        width: 56px;
-        height: 56px;
-        margin-bottom: 18px;
-        opacity: 0.9;
-      }
-
-      .download-screen h2 {
-        color: var(--gold);
-        font-size: 20px;
-        margin: 0 0 8px;
-      }
-
-      .download-screen p {
-        color: var(--ink-dim);
-        font-size: 13px;
-        margin: 0 0 28px;
-        max-width: 280px;
-        line-height: 1.7;
-      }
-
-      .download-progress-bar {
-        width: 100%;
-        max-width: 280px;
-        height: 8px;
-        background: var(--bg-elevated);
-        border: 1px solid var(--line);
-        border-radius: 20px;
-        overflow: hidden;
-        margin-bottom: 10px;
-      }
-
-      .download-progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--gold-soft), var(--gold));
-        width: 0%;
-        transition: width 0.2s ease;
-      }
-
-      .download-progress-text {
-        color: var(--ink-dim);
-        font-size: 13px;
-        margin-bottom: 4px;
-      }
-
-      .download-progress-detail {
-        color: var(--ink-dim);
-        font-size: 11px;
-        opacity: 0.7;
-      }
-
-      .download-error-box {
-        margin-top: 20px;
-        padding: 14px 18px;
-        background: var(--bg-elevated);
-        border: 1px solid #6b3a3a;
-        border-radius: 10px;
-        color: #e0a0a0;
-        font-size: 13px;
-        max-width: 280px;
-      }
-
-      .retry-btn {
-        margin-top: 14px;
-        background: var(--gold-soft);
-        color: var(--bg);
-        border: none;
-        padding: 10px 24px;
-        border-radius: 24px;
-        font-family: inherit;
-        font-size: 13px;
-        cursor: pointer;
-        font-weight: 600;
-      }
-
-      @media (max-width: 420px) {
-        .mushaf-line {
-          font-size: 17px;
-        }
-        .mushaf-header-line {
-          font-size: 16px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="app"></div>
-
-    <script>
-      const RAW_BASE =
-        "https://raw.githubusercontent.com/MohamadHajjRabee/quran-qcf4/main";
-      const FONT_CDN =
-        "https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main/fonts-woff2";
-      const TOTAL_PAGES = 604;
-
-      let currentPage = 1;
-      const pageCache = {};
-      const loadedFonts = new Set();
-
-      const app = document.getElementById("app");
-
-      function backIconSVG() {
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="15 18 9 12 15 6"/>
-  </svg>`;
-      }
-
-      function forwardIconSVG() {
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>`;
-      }
-
-      function renderShell() {
-        app.innerHTML = `
+function renderShell(){
+  const opts=RECITERS.map(r=>`<option value="${r.id}"${r.id===currentReciterId?' selected':''}>${r.name}</option>`).join('');
+  app.innerHTML=`
     <div class="topbar">
-      <button class="icon-btn" id="prevBtn" title="السابق">${forwardIconSVG()}</button>
-      <div style="text-align:center;">
-        <h1 id="surahTitle">القرآن الكريم</h1>
-        <div class="surah-info" id="surahInfo">جاري التحميل...</div>
-      </div>
-      <button class="icon-btn" id="nextBtn" title="التالي">${backIconSVG()}</button>
+      <button class="icon-btn" id="prevBtn">${SVG.fwd}</button>
+      <div style="text-align:center"><h1 id="surahTitle">القرآن الكريم</h1><div class="surah-info" id="surahInfo">جاري التحميل...</div></div>
+      <button class="icon-btn" id="settingsBtn" title="الإعدادات">${SVG.gear}</button>
     </div>
-    <div class="page-wrap" id="pageWrap">
-      <div class="status-msg"><div class="spinner"></div>تحميل الصفحة...</div>
+    <div class="audio-bar">
+      <button class="audio-btn" id="playPageBtn">${SVG.play}<span>تشغيل الصفحة</span></button>
+      <select class="reciter-select" id="reciterSel">${opts}</select>
+      <span class="audio-status" id="audioStatus"></span>
     </div>
+    <div class="page-wrap" id="pageWrap"><div class="status-msg"><div class="spinner"></div>تحميل الصفحة...</div></div>
     <div class="bottom-nav">
-      <button class="nav-btn" id="prevBtn2">${forwardIconSVG()}<span>السابقة</span></button>
+      <button class="nav-btn" id="prevBtn2">${SVG.fwd}<span>السابقة</span></button>
       <input type="number" class="page-jump" id="pageJump" min="1" max="${TOTAL_PAGES}" value="1">
-      <button class="nav-btn" id="nextBtn2"><span>التالية</span>${backIconSVG()}</button>
-    </div>
-  `;
+      <button class="nav-btn" id="nextBtn2"><span>التالية</span>${SVG.back}</button>
+    </div>`;
+  document.getElementById('prevBtn').onclick=()=>goToPage(currentPage-1);
+  document.getElementById('settingsBtn').onclick=openSettings;
+  document.getElementById('prevBtn2').onclick=()=>goToPage(currentPage-1);
+  document.getElementById('nextBtn2').onclick=()=>goToPage(currentPage+1);
+  document.getElementById('pageJump').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=parseInt(e.target.value);if(v>=1&&v<=TOTAL_PAGES)goToPage(v);}});
+  document.getElementById('reciterSel').addEventListener('change',e=>{currentReciterId=e.target.value;localStorage.setItem('quran_reciter',currentReciterId);stopAudio();});
+  document.getElementById('playPageBtn').onclick=togglePlayPage;
+  initAudio();
+}
 
-        document
-          .getElementById("prevBtn")
-          .addEventListener("click", () => goToPage(currentPage - 1));
-        document
-          .getElementById("nextBtn")
-          .addEventListener("click", () => goToPage(currentPage + 1));
-        document
-          .getElementById("prevBtn2")
-          .addEventListener("click", () => goToPage(currentPage - 1));
-        document
-          .getElementById("nextBtn2")
-          .addEventListener("click", () => goToPage(currentPage + 1));
-        document.getElementById("pageJump").addEventListener("keydown", (e) => {
-          if (e.key === "Enter") {
-            const val = parseInt(e.target.value);
-            if (val >= 1 && val <= TOTAL_PAGES) goToPage(val);
-          }
-        });
-      }
+function initAudio(){
+  if(audioEl)return;
+  audioEl=new Audio();
+  audioEl.addEventListener('ended',onAudioEnded);
+  audioEl.addEventListener('error',onAudioError);
+}
 
-      function pad3(n) {
-        return String(n).padStart(3, "0");
-      }
+function togglePlayPage(){
+  if(isPlayingPage){stopAudio();return;}
+  const wrap=document.getElementById('pageWrap');
+  const keys=JSON.parse(wrap.dataset.verseKeys||'[]');
+  if(!keys.length)return;
+  pageQueue=keys; pageQueueIdx=0; isPlayingPage=true;
+  updatePageBtn(); playVerse(pageQueue[0]);
+}
 
-      function downloadOrnamentSVG() {
-        return `<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="28" cy="28" r="26" stroke="#c9a356" stroke-width="1" opacity="0.5"/>
-    <circle cx="28" cy="28" r="19" stroke="#c9a356" stroke-width="1" opacity="0.7"/>
-    <path d="M28 6 L31 22 L47 25 L31 28 L28 44 L25 28 L9 25 L25 22 Z" fill="#c9a356" opacity="0.85"/>
-  </svg>`;
-      }
+function playVerseOnly(vk){
+  isPlayingPage=false; pageQueue=[]; updatePageBtn(); playVerse(vk);
+}
 
-      const ALL_FONT_NAMES = (() => {
-        const names = ["QCF4_QBSML"];
-        for (let i = 1; i <= 47 - 1; i++) {
-          names.push(`QCF4_Hafs_${String(i).padStart(2, "0")}`);
-        }
-        return names;
-      })();
+function playVerse(vk){
+  const [s,a]=vk.split(':').map(Number);
+  activeVerseKey=vk; highlightActive();
+  setStatus('جاري التحميل...');
 
-      function renderDownloadScreen() {
-        app.innerHTML = `
-    <div class="download-screen" id="downloadScreen">
-      <div class="download-ornament">${downloadOrnamentSVG()}</div>
-      <h2>تحميل المصحف الشريف</h2>
-      <p>يتم الآن تحميل كل صفحات المصحف لمرة واحدة فقط، بعدها يعمل التطبيق بالكامل بدون إنترنت.</p>
-      <div class="download-progress-bar"><div class="download-progress-fill" id="progFill"></div></div>
-      <div class="download-progress-text" id="progText">0 / ${TOTAL_PAGES} صفحة</div>
-      <div class="download-progress-detail" id="progDetail">جاري تحميل الخطوط...</div>
-    </div>
-  `;
-      }
+  const reciter=RECITERS.find(r=>r.id===currentReciterId);
+  if(reciter && !reciter.ayahByAyah){
+    // إسلام صبحي: شغّل السورة كاملة من أوّلها
+    audioEl.src=reciter.surahUrl(s);
+  } else {
+    // بقية القراء: آية بآية
+    audioEl.src=ayahAudioUrl(s,a);
+  }
 
-      function showDownloadError(message) {
-        const screen = document.getElementById("downloadScreen");
-        const existing = screen.querySelector(".download-error-box");
-        if (existing) existing.remove();
-        const box = document.createElement("div");
-        box.className = "download-error-box";
-        box.innerHTML = `${message}<br><button class="retry-btn" id="retryBtn">إعادة المحاولة</button>`;
-        screen.appendChild(box);
-        document
-          .getElementById("retryBtn")
-          .addEventListener("click", startFullDownload);
-      }
+  audioEl.load();
+  audioEl.play()
+    .then(()=>setStatus(''))
+    .catch(err=>{console.warn(err);setStatus('تعذّر التشغيل');clearHighlight();});
+}
 
-      async function startFullDownload() {
-        renderDownloadScreen();
-        const progFill = document.getElementById("progFill");
-        const progText = document.getElementById("progText");
-        const progDetail = document.getElementById("progDetail");
+function onAudioEnded(){
+  const reciter=RECITERS.find(r=>r.id===currentReciterId);
+  // إسلام صبحي: السورة كاملة خلصت، نوقف فقط
+  if(reciter && !reciter.ayahByAyah){ stopAudio(); return; }
+  // بقية القراء: انتقل للآية التالية في الصفحة
+  if(isPlayingPage&&pageQueueIdx<pageQueue.length-1){pageQueueIdx++;playVerse(pageQueue[pageQueueIdx]);}
+  else stopAudio();
+}
+function onAudioError(){
+  setStatus('خطأ في التحميل');
+  if(isPlayingPage&&pageQueueIdx<pageQueue.length-1){pageQueueIdx++;setTimeout(()=>playVerse(pageQueue[pageQueueIdx]),500);}
+  else stopAudio();
+}
 
-        try {
-          // الخطوة 1: تحميل كل الخطوط (47 خط + خط العناوين)
-          progDetail.textContent = "جاري تحميل الخطوط...";
-          for (const fontName of ALL_FONT_NAMES) {
-            await ensureFontLoaded(fontName);
-          }
+function stopAudio(){
+  if(audioEl){audioEl.pause();audioEl.src='';}
+  isPlayingPage=false; activeVerseKey=null; pageQueue=[]; pageQueueIdx=0;
+  clearHighlight(); updatePageBtn(); setStatus('');
+}
 
-          // الخطوة 2: تحميل بيانات كل صفحة (604 صفحة)، على دفعات لتجنب إغراق الشبكة
-          progDetail.textContent = "جاري تحميل صفحات المصحف...";
-          const BATCH_SIZE = 10;
-          let completed = 0;
+function updatePageBtn(){
+  const btn=document.getElementById('playPageBtn');
+  if(!btn)return;
+  if(isPlayingPage){btn.classList.add('playing');btn.innerHTML=`${SVG.stop}<span>إيقاف</span>`;}
+  else{btn.classList.remove('playing');btn.innerHTML=`${SVG.play}<span>تشغيل الصفحة</span>`;}
+}
+function setStatus(t){const el=document.getElementById('audioStatus');if(el)el.textContent=t;}
+function highlightActive(){clearHighlight();if(!activeVerseKey)return;document.querySelectorAll(`.clickable-word[data-verse-key="${activeVerseKey}"]`).forEach(el=>el.classList.add('word-playing'));}
+function clearHighlight(){document.querySelectorAll('.word-playing').forEach(el=>el.classList.remove('word-playing'));}
 
-          for (let start = 1; start <= TOTAL_PAGES; start += BATCH_SIZE) {
-            const batch = [];
-            for (
-              let p = start;
-              p < Math.min(start + BATCH_SIZE, TOTAL_PAGES + 1);
-              p++
-            ) {
-              batch.push(fetchPageData(p));
-            }
-            await Promise.all(batch);
-            completed += batch.length;
-            const percent = Math.round((completed / TOTAL_PAGES) * 100);
-            progFill.style.width = `${percent}%`;
-            progText.textContent = `${completed} / ${TOTAL_PAGES} صفحة`;
-          }
+/* ===================== Download ===================== */
+let currentPage=1; const pageCache={},loadedFonts=new Set();
+function pad3(n){return String(n).padStart(3,'0');}
+function downloadOrnamentSVG(){return`<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="28" cy="28" r="26" stroke="#c9a356" stroke-width="1" opacity="0.5"/><circle cx="28" cy="28" r="19" stroke="#c9a356" stroke-width="1" opacity="0.7"/><path d="M28 6 L31 22 L47 25 L31 28 L28 44 L25 28 L9 25 L25 22 Z" fill="#c9a356" opacity="0.85"/></svg>`;}
+const ALL_FONT_NAMES=(()=>{const n=['QCF4_QBSML'];for(let i=1;i<=46;i++)n.push(`QCF4_Hafs_${String(i).padStart(2,'0')}`);return n;})();
 
-          progDetail.textContent = "اكتمل التحميل، جاري فتح المصحف...";
-          await new Promise((r) => setTimeout(r, 400));
-
-          // تم التحميل بنجاح، الآن نعرض التطبيق نفسه
-          localStorage.setItem("quran_fully_downloaded", "true");
-          renderShell();
-          goToPage(1);
-        } catch (err) {
-          progDetail.textContent = "";
-          showDownloadError(
-            "تعذّر إكمال التحميل. تحقق من اتصال الإنترنت ثم حاول مرة أخرى."
-          );
-        }
-      }
-
-      // تسجيل Service Worker لتفعيل القراءة بدون إنترنت
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("sw.js").catch(() => {});
-      }
-
-      // إذا سبق واكتمل التحميل الكامل، نفتح المصحف مباشرة بدون إعادة التحميل
-      if (localStorage.getItem("quran_fully_downloaded") === "true") {
-        renderShell();
-        goToPage(1);
-      } else {
-        startFullDownload();
-      }
-
-      async function ensureFontLoaded(fontName) {
-        if (loadedFonts.has(fontName)) return;
-        // ملف خط عناوين السور (QBSML) لا يحتوي على لاحقة "_W" في اسمه، عكس باقي الخطوط
-        const fileSuffix = fontName === "QCF4_QBSML" ? "" : "_W";
-        const style = document.createElement("style");
-        style.textContent = `
-    @font-face {
-      font-family: '${fontName}';
-      src: url('${FONT_CDN}/${fontName}${fileSuffix}.woff2') format('woff2');
-      font-display: swap;
+function renderDownloadScreen(){
+  app.innerHTML=`<div class="download-screen" id="downloadScreen"><div class="download-ornament">${downloadOrnamentSVG()}</div><h2>تحميل المصحف الشريف</h2><p>يتم الآن تحميل كل صفحات المصحف لمرة واحدة فقط، بعدها يعمل التطبيق بالكامل بدون إنترنت.</p><div class="download-progress-bar"><div class="download-progress-fill" id="progFill"></div></div><div class="download-progress-text" id="progText">0 / ${TOTAL_PAGES} صفحة</div><div class="download-progress-detail" id="progDetail">جاري تحميل الخطوط...</div></div>`;
+}
+function showDownloadError(msg){
+  const sc=document.getElementById('downloadScreen');const ex=sc.querySelector('.download-error-box');if(ex)ex.remove();
+  const b=document.createElement('div');b.className='download-error-box';b.innerHTML=`${msg}<br><button class="retry-btn" id="retryBtn">إعادة المحاولة</button>`;sc.appendChild(b);
+  document.getElementById('retryBtn').addEventListener('click',startFullDownload);
+}
+async function startFullDownload(){
+  renderDownloadScreen();
+  const progFill=document.getElementById('progFill'),progText=document.getElementById('progText'),progDetail=document.getElementById('progDetail');
+  try{
+    progDetail.textContent='جاري تحميل الخطوط...';
+    for(const f of ALL_FONT_NAMES)await ensureFontLoaded(f);
+    progDetail.textContent='جاري تحميل صفحات المصحف...';
+    const BATCH=10;let done=0;
+    for(let s=1;s<=TOTAL_PAGES;s+=BATCH){
+      const batch=[];for(let p=s;p<Math.min(s+BATCH,TOTAL_PAGES+1);p++)batch.push(fetchPageData(p));
+      await Promise.all(batch);done+=batch.length;
+      progFill.style.width=Math.round(done/TOTAL_PAGES*100)+'%';
+      progText.textContent=`${done} / ${TOTAL_PAGES} صفحة`;
     }
-  `;
-        document.head.appendChild(style);
-        loadedFonts.add(fontName);
-        try {
-          await document.fonts.load(`20px ${fontName}`);
-        } catch (e) {
-          // تجاهل أخطاء تحميل الخط الفردية، المتصفح سيعيد المحاولة عند العرض
-        }
-      }
+    progDetail.textContent='اكتمل التحميل، جاري فتح المصحف...';
+    await new Promise(r=>setTimeout(r,400));
+    localStorage.setItem('quran_fully_downloaded','true');
+    renderShell();goToPage(1);
+  }catch(err){progDetail.textContent='';showDownloadError('تعذّر إكمال التحميل. تحقق من اتصال الإنترنت ثم حاول مرة أخرى.');}
+}
 
-      async function fetchPageData(pageNum) {
-        if (pageCache[pageNum]) return pageCache[pageNum];
-        const res = await fetch(`${RAW_BASE}/pages/${pad3(pageNum)}.json`);
-        if (!res.ok) throw new Error("فشل تحميل الصفحة");
-        const data = await res.json();
-        pageCache[pageNum] = data;
-        return data;
-      }
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(localStorage.getItem('quran_fully_downloaded')==='true'){renderShell();goToPage(1);}
+else startFullDownload();
 
-      function codeToChar(code) {
-        return String.fromCharCode(code);
-      }
+async function ensureFontLoaded(fontName){
+  if(loadedFonts.has(fontName))return;
+  const suffix=fontName==='QCF4_QBSML'?'':'_W';
+  const s=document.createElement('style');
+  s.textContent=`@font-face{font-family:'${fontName}';src:url('${FONT_CDN}/${fontName}${suffix}.woff2') format('woff2');font-display:swap;}`;
+  document.head.appendChild(s);loadedFonts.add(fontName);
+  try{await document.fonts.load(`20px ${fontName}`);}catch(e){}
+}
+async function fetchPageData(pageNum){
+  if(pageCache[pageNum])return pageCache[pageNum];
+  const r=await fetch(`${RAW_BASE}/pages/${pad3(pageNum)}.json`);
+  if(!r.ok)throw new Error('fail');
+  const d=await r.json();pageCache[pageNum]=d;return d;
+}
+function codeToChar(code){return String.fromCharCode(code);}
 
-      async function goToPage(pageNum) {
-        if (pageNum < 1 || pageNum > TOTAL_PAGES) return;
-        currentPage = pageNum;
-        document.getElementById("pageJump").value = pageNum;
-        document.getElementById("prevBtn").disabled = pageNum <= 1;
-        document.getElementById("nextBtn").disabled = pageNum >= TOTAL_PAGES;
-        document.getElementById("prevBtn2").disabled = pageNum <= 1;
-        document.getElementById("nextBtn2").disabled = pageNum >= TOTAL_PAGES;
+async function goToPage(pageNum){
+  if(pageNum<1||pageNum>TOTAL_PAGES)return;
+  stopAudio();currentPage=pageNum;
+  const jump=document.getElementById('pageJump');if(jump)jump.value=pageNum;
+  ['prevBtn','prevBtn2'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=pageNum<=1;});
+  ['nextBtn','nextBtn2'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=pageNum>=TOTAL_PAGES;});
+  const pageWrap=document.getElementById('pageWrap');
+  pageWrap.innerHTML=`<div class="status-msg"><div class="spinner"></div>تحميل الصفحة ${pageNum}...</div>`;
+  try{
+    const data=await fetchPageData(pageNum);
+    const fontsNeeded=new Set();
+    data.lines.forEach(l=>l.words.forEach(w=>fontsNeeded.add(w.font)));
+    await Promise.all([...fontsNeeded].map(ensureFontLoaded));
+    renderPage(data);
+    if(data.surahs&&data.surahs.length>0)document.getElementById('surahTitle').textContent=data.surahs[0].name_arabic;
+    document.getElementById('surahInfo').textContent=`صفحة ${pageNum}`;
+    window.scrollTo(0,0);
+  }catch(err){
+    const msg=!navigator.onLine?`أنت غير متصل وهذه الصفحة (${pageNum}) لم تُحفظ بعد.`:`تعذّر تحميل الصفحة ${pageNum}.`;
+    pageWrap.innerHTML=`<div class="status-msg">${msg}</div>`;
+  }
+}
 
-        const pageWrap = document.getElementById("pageWrap");
-        pageWrap.innerHTML = `<div class="status-msg"><div class="spinner"></div>تحميل الصفحة ${pageNum}...</div>`;
+function renderPage(data){
+  const pageWrap=document.getElementById('pageWrap');
+  const verseKeys=[];let linesHtml='';
+  data.lines.forEach(line=>{
+    const isHeader=line.words.length>0&&line.words[0].type==='surah_header';
+    linesHtml+=`<div class="${isHeader?'mushaf-header-line':'mushaf-line'}">`;
+    line.words.forEach(w=>{
+      const ch=w.char||codeToChar(w.code);
+      if(w.type==='word'&&w.verse_key){
+        if(!verseKeys.includes(w.verse_key))verseKeys.push(w.verse_key);
+        linesHtml+=`<span class="mushaf-word clickable-word" data-verse-key="${w.verse_key}" style="font-family:'${w.font}'">${ch}</span>`;
+      }else{linesHtml+=`<span class="mushaf-word" style="font-family:'${w.font}'">${ch}</span>`;}
+    });
+    linesHtml+=`</div>`;
+  });
+  pageWrap.innerHTML=`<div class="mushaf-page"><div class="page-number-badge">صفحة ${data.page}</div>${linesHtml}<div class="tafsir-box" id="tafsirBox"></div></div>`;
+  pageWrap.dataset.verseKeys=JSON.stringify(verseKeys);
+  pageWrap.querySelectorAll('.clickable-word').forEach(el=>{
+    el.addEventListener('click',()=>{const vk=el.dataset.verseKey;playVerseOnly(vk);showTafsir(vk);});
+  });
+  shrinkOverflowingLines();
+}
 
-        try {
-          const data = await fetchPageData(pageNum);
+function shrinkOverflowingLines(){
+  requestAnimationFrame(()=>{
+    document.querySelectorAll('.mushaf-line,.mushaf-header-line').forEach(line=>{
+      const c=line.closest('.mushaf-page');if(!c)return;
+      const maxW=c.clientWidth-28;let fs=parseFloat(getComputedStyle(line).fontSize),tries=0;
+      while(line.scrollWidth>maxW&&tries<15){fs-=.5;line.style.fontSize=fs+'px';tries++;}
+    });
+  });
+}
 
-          // تحميل كل الخطوط المطلوبة لهذه الصفحة
-          const fontsNeeded = new Set();
-          data.lines.forEach((line) => {
-            line.words.forEach((w) => fontsNeeded.add(w.font));
-          });
-          await Promise.all(Array.from(fontsNeeded).map(ensureFontLoaded));
+const tafsirCache={};
+async function showTafsir(verseKey){
+  const[surahNum,ayahNum]=verseKey.split(':');
+  const box=document.getElementById('tafsirBox');if(!box)return;
+  if(box.dataset.currentVerse===verseKey&&box.classList.contains('open')){box.classList.remove('open');return;}
+  box.dataset.currentVerse=verseKey;box.classList.add('open');
+  box.innerHTML=`<span class="tafsir-loading">جاري تحميل التفسير...</span>`;
+  if(tafsirCache[verseKey]){box.innerHTML=tafsirCache[verseKey];return;}
+  try{
+    const res=await fetch(`${TAFSIR_BASE}/ayah/${surahNum}:${ayahNum}/${TAFSIR_EDITION}`);
+    if(!res.ok)throw new Error('fail');
+    const json=await res.json();
+    if(!json.data?.text)throw new Error('empty');
+    const html=`<span class="tafsir-label">التفسير الميسر · آية ${ayahNum}</span>${json.data.text}`;
+    tafsirCache[verseKey]=html;box.innerHTML=html;
+  }catch{box.innerHTML=`<span class="tafsir-loading">تعذّر تحميل التفسير.</span>`;}
+}
 
-          renderPage(data);
+/* =====================================================
+   منطق التحميل الأوفلاين للصوت والتفسير
+   ===================================================== */
+const OFFLINE_CACHE = 'quran-offline-v1';
+const TOTAL_AYAT = 6236;
 
-          // تحديث عنوان السورة (آخر سورة تبدأ أو تظهر بهذه الصفحة)
-          if (data.surahs && data.surahs.length > 0) {
-            const surah = data.surahs[0];
-            document.getElementById("surahTitle").textContent =
-              surah.name_arabic;
-            document.getElementById(
-              "surahInfo"
-            ).textContent = `صفحة ${pageNum}`;
-          } else {
-            document.getElementById("surahTitle").textContent = "القرآن الكريم";
-            document.getElementById(
-              "surahInfo"
-            ).textContent = `صفحة ${pageNum}`;
+// الحالات المخزّنة في localStorage
+function getDownloadedReciters(){ try{ return JSON.parse(localStorage.getItem('offline_reciters')||'[]'); }catch{return[];} }
+function markReciterDownloaded(id){ const l=getDownloadedReciters(); if(!l.includes(id)){l.push(id);localStorage.setItem('offline_reciters',JSON.stringify(l));} }
+function isReciterDownloaded(id){ return getDownloadedReciters().includes(id); }
+function isTafsirDownloaded(){ return localStorage.getItem('offline_tafsir')==='true'; }
+
+// فتح شاشة الإعدادات
+function openSettings(){
+  const downloaded = getDownloadedReciters();
+  const tafsirDone = isTafsirDownloaded();
+
+  const reciterRows = RECITERS.map(r => {
+    const done = isReciterDownloaded(r.id);
+    const sizeNote = r.ayahByAyah ? '~500MB' : '~900MB';
+    return `
+      <div class="reciter-row" id="row-${r.id}">
+        <span class="reciter-row-name ${currentReciterId===r.id?'active':''}">${r.name}${currentReciterId===r.id?' ✓':''}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          ${done
+            ? `<span class="dl-btn downloaded">✓ محمّل أوفلاين</span>`
+            : `<button class="dl-btn" onclick="startReciterDownload('${r.id}')" id="dlbtn-${r.id}">⬇ تحميل (${sizeNote})</button>`
           }
+          <div class="dl-progress" id="dlprog-${r.id}"></div>
+        </div>
+      </div>`;
+  }).join('');
 
-          window.scrollTo(0, 0);
-        } catch (err) {
-          const isOffline = !navigator.onLine;
-          const message = isOffline
-            ? `أنت غير متصل بالإنترنت، وهذه الصفحة (${pageNum}) لم تُفتح من قبل لتُحفظ. افتحها مرة واحدة وأنت متصل، وبعدها تصبح متاحة بدون نت.`
-            : `تعذّر تحميل الصفحة ${pageNum}. تحقق من اتصال الإنترنت وحاول مرة أخرى.`;
-          pageWrap.innerHTML = `<div class="status-msg">${message}</div>`;
+  const overlay = document.createElement('div');
+  overlay.className = 'settings-overlay';
+  overlay.id = 'settingsOverlay';
+  overlay.innerHTML = `
+    <div class="settings-panel">
+      <p class="settings-title">⚙️ الإعدادات</p>
+
+      
+      <div class="settings-section">
+        <span class="settings-section-label">لون الخلفية</span>
+        <div class="theme-row">
+          <span class="reciter-row-name">اختر لوناً</span>
+          <div class="theme-btns" id="themeBtns">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <span class="settings-section-label">القارئ الحالي</span>
+        <select class="reciter-select" id="settingsReciterSel" style="width:100%;border-radius:12px;padding:12px;">
+          ${RECITERS.map(r=>`<option value="${r.id}"${r.id===currentReciterId?' selected':''}>${r.name}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="settings-section">
+        <span class="settings-section-label">تحميل الصوت للأوفلاين (اختياري)</span>
+        ${reciterRows}
+      </div>
+
+      <div class="settings-section">
+        <span class="settings-section-label">التفسير الأوفلاين</span>
+        <div class="tafsir-dl-row">
+          <span class="reciter-row-name">التفسير الميسر (كامل)</span>
+          ${tafsirDone
+            ? `<span class="dl-btn downloaded">✓ محمّل أوفلاين</span>`
+            : `<button class="dl-btn" onclick="startTafsirDownload()" id="dlbtn-tafsir">⬇ تحميل (~1MB)</button>`
+          }
+        </div>
+        <div class="dl-progress" id="dlprog-tafsir"></div>
+      </div>
+
+      <button class="settings-close" onclick="closeSettings()">إغلاق</button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if(e.target===overlay) closeSettings(); });
+
+  // بناء نقاط الثيم ديناميكياً
+  const themes=[
+    {id:'default',label:'ذهبي'},{id:'pink',label:'وردي'},
+    {id:'blue',label:'أزرق'},{id:'green',label:'أخضر'},{id:'sky',label:'سمائي'}
+  ];
+  const tb=document.getElementById('themeBtns');
+  if(tb){
+    themes.forEach(t=>{
+      const d=document.createElement('div');
+      d.className='theme-dot t-'+t.id+(currentTheme===t.id?' active':'');
+      d.title=t.label;
+      d.onclick=()=>setTheme(t.id);
+      tb.appendChild(d);
+    });
+  }
+
+  document.getElementById('settingsReciterSel').addEventListener('change', e => {
+    currentReciterId = e.target.value;
+    localStorage.setItem('quran_reciter', currentReciterId);
+    stopAudio();
+    // تحديث القائمة في شريط التلاوة
+    const sel = document.getElementById('reciterSel');
+    if(sel) sel.value = currentReciterId;
+  });
+}
+
+function closeSettings(){
+  const ov = document.getElementById('settingsOverlay');
+  if(ov) ov.remove();
+}
+
+// تحميل صوت قارئ كامل للأوفلاين
+async function startReciterDownload(reciterId){
+  const btn = document.getElementById('dlbtn-'+reciterId);
+  const prog = document.getElementById('dlprog-'+reciterId);
+  if(!btn || !prog) return;
+
+  btn.textContent = 'جاري التحميل...';
+  btn.classList.add('downloading');
+  btn.disabled = true;
+  prog.classList.add('show');
+
+  const reciter = RECITERS.find(r=>r.id===reciterId);
+  const cache = await caches.open(OFFLINE_CACHE);
+
+  try {
+    if(!reciter.ayahByAyah){
+      // إسلام صبحي: تحميل 114 سورة
+      for(let s=1; s<=114; s++){
+        const url = reciter.surahUrl(s);
+        if(!(await cache.match(url))){
+          try{ const r=await fetch(url); if(r.ok) await cache.put(url,r); }catch{}
+        }
+        prog.textContent = `${s} / 114 سورة`;
+      }
+    } else {
+      // القراء الآخرون: تحميل آية بآية
+      // نحمّل بياناتنا الكاملة لمعرفة أرقام الآيات الصحيحة
+      // نمر على كل سور القرآن 114×عدد آياتها
+      const surahAyatCounts = [7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
+      let done=0, total=TOTAL_AYAT;
+      for(let s=1; s<=114; s++){
+        const ayatInSurah = surahAyatCounts[s-1];
+        for(let a=1; a<=ayatInSurah; a++){
+          const url = ayahAudioUrl(s,a).replace(currentReciterId,reciterId);
+          if(!(await cache.match(url))){
+            try{ const r=await fetch(url); if(r.ok) await cache.put(url,r); }catch{}
+          }
+          done++;
+          if(done%50===0) prog.textContent = `${done} / ${total} آية`;
         }
       }
+    }
 
-      function renderPage(data) {
-        const pageWrap = document.getElementById("pageWrap");
-        let linesHtml = "";
+    markReciterDownloaded(reciterId);
+    btn.outerHTML = `<span class="dl-btn downloaded">✓ محمّل أوفلاين</span>`;
+    prog.textContent = 'اكتمل التحميل ✓';
+  } catch(err){
+    btn.textContent = '⬇ إعادة المحاولة';
+    btn.classList.remove('downloading');
+    btn.disabled = false;
+    prog.textContent = 'فشل التحميل، حاول مرة أخرى';
+  }
+}
 
-        data.lines.forEach((line) => {
-          const isHeader =
-            line.words.length > 0 && line.words[0].type === "surah_header";
-          const rowClass = isHeader ? "mushaf-header-line" : "mushaf-line";
-          linesHtml += `<div class="${rowClass}">`;
-          line.words.forEach((w) => {
-            const ch = w.char || codeToChar(w.code);
-            linesHtml += `<span class="mushaf-word" style="font-family:'${w.font}'">${ch}</span>`;
-          });
-          linesHtml += `</div>`;
-        });
+// تحميل التفسير كامل للأوفلاين
+async function startTafsirDownload(){
+  const btn = document.getElementById('dlbtn-tafsir');
+  const prog = document.getElementById('dlprog-tafsir');
+  if(!btn || !prog) return;
 
-        pageWrap.innerHTML = `
-    <div class="mushaf-page">
-      <div class="page-number-badge">صفحة ${data.page}</div>
-      ${linesHtml}
-    </div>
-  `;
+  btn.textContent = 'جاري التحميل...';
+  btn.classList.add('downloading');
+  btn.disabled = true;
+  prog.classList.add('show');
+
+  const surahAyatCounts = [7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
+  let done = 0;
+
+  try {
+    const BATCH = 20;
+    for(let s=1; s<=114; s++){
+      const ayatInSurah = surahAyatCounts[s-1];
+      for(let a=1; a<=ayatInSurah; a+=BATCH){
+        const promises = [];
+        for(let i=a; i<Math.min(a+BATCH, ayatInSurah+1); i++){
+          const vk = `${s}:${i}`;
+          if(!tafsirCache[vk]){
+            promises.push(
+              fetch(`${TAFSIR_BASE}/ayah/${s}:${i}/${TAFSIR_EDITION}`)
+                .then(r=>r.json())
+                .then(json=>{
+                  if(json.data?.text){
+                    tafsirCache[vk]=`<span class="tafsir-label">التفسير الميسر · آية ${i}</span>${json.data.text}`;
+                  }
+                }).catch(()=>{})
+            );
+          }
+          done++;
+        }
+        await Promise.all(promises);
+        prog.textContent = `${done} / ${TOTAL_AYAT} آية`;
+        // استراحة صغيرة عشان ما نضغط على الـ API
+        await new Promise(r=>setTimeout(r,100));
       }
+    }
 
-      // ملاحظة: بدء التطبيق الآن يتم تلقائياً أسفل الملف بعد فحص حالة التحميل الكامل
-    </script>
-  </body>
+    // نخزّن التفسير في localStorage (بما إن الحجم صغير)
+    localStorage.setItem('offline_tafsir','true');
+    localStorage.setItem('tafsir_data', JSON.stringify(tafsirCache));
+    btn.outerHTML = `<span class="dl-btn downloaded">✓ محمّل أوفلاين</span>`;
+    prog.textContent = 'اكتمل التحميل ✓';
+  } catch(err){
+    btn.textContent = '⬇ إعادة المحاولة';
+    btn.classList.remove('downloading');
+    btn.disabled = false;
+    prog.textContent = 'فشل التحميل';
+  }
+}
+
+// عند بدء التطبيق: نسترجع التفسير المحفوظ إن وجد
+(function loadCachedTafsir(){
+  try{
+    const saved = localStorage.getItem('tafsir_data');
+    if(saved){ Object.assign(tafsirCache, JSON.parse(saved)); }
+  }catch{}
+})();
+
+
+/* ===== منطق الثيم ===== */
+let currentTheme = localStorage.getItem('quran_theme') || 'default';
+
+function applyTheme(t){
+  document.body.className = t==='default' ? '' : 'theme-'+t;
+}
+
+function setTheme(t){
+  currentTheme = t;
+  localStorage.setItem('quran_theme', t);
+  applyTheme(t);
+  // تحديث النقاط داخل الإعدادات لو مفتوحة
+  document.querySelectorAll('.theme-dot').forEach(d=>{
+    d.classList.toggle('active', d.classList.contains('t-'+t) || (t==='default' && d.classList.contains('t-default')));
+  });
+}
+
+// تطبيق الثيم عند التحميل
+applyTheme(currentTheme);
+
+</script>
+</body>
 </html>
