@@ -1,79 +1,92 @@
-// Service Worker لتطبيق القرآن الكريم
-// يخزّن كل صفحة وخط يُطلب فعلياً، بحيث تصبح متاحة بدون إنترنت بعد أول فتح
+// Service Worker - القرآن الكريم
+// النسخة v3: مستقر للجوال، يخزّن كل شي تلقائياً
 
-const CACHE_NAME = "quran-mushaf-v1";
+const CACHE = 'quran-v3';
 
-// عند التثبيت، نخزّن الملفات الأساسية للتطبيق نفسه (الواجهة)
-self.addEventListener("install", (event) => {
+// ===== التثبيت: نخزّن ملفات التطبيق الأساسية فقط =====
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        return cache.addAll(["./", "./index.html", "./manifest.json"]);
-      })
-      .catch(() => {
-        // تجاهل أي خطأ بسيط هنا، الأهم هو التخزين أثناء التصفح
-      })
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+    caches.open(CACHE).then(cache => {
+      // نحاول نخزّن كل ملف بشكل مستقل حتى لو فشل واحد ما يوقف الباقي
+      const files = ['./index.html', './manifest.json', './sw.js'];
+      return Promise.allSettled(
+        files.map(f => cache.add(f).catch(() => {}))
       );
     })
   );
-  self.clients.claim();
+  // تفعيل فوري بدون انتظار إغلاق التبويبات القديمة
+  self.skipWaiting();
 });
 
-// استراتيجية "Cache First, then Network":
-// إذا الملف محفوظ سابقاً، نعطيه فوراً من المخزن (يعمل بدون نت)
-// إذا غير محفوظ، نجلبه من الإنترنت ونخزنه لاستخدام القادم
-self.addEventListener("fetch", (event) => {
-  const url = event.request.url;
+// ===== التفعيل: حذف الكاش القديم =====
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+      )
+    ).then(() => self.clients.claim())
+  );
+});
 
-  // نخزّن فقط: بيانات الصفحات (pages/*.json) وملفات الخطوط (fonts-woff2/*.woff2)
-  // وكذلك ملفات التطبيق نفسه
-  const isPageData = url.includes("/pages/") && url.endsWith(".json");
-  const isFontFile = url.includes("fonts-woff2") && url.endsWith(".woff2");
-  const isAppFile =
-    url.includes("index.html") ||
-    url.includes("manifest.json") ||
-    url.endsWith("/");
+// ===== الاعتراض: Cache First ثم Network =====
+self.addEventListener('fetch', event => {
+  const req = event.request;
+  const url = req.url;
 
-  if (!isPageData && !isFontFile && !isAppFile) {
-    return; // نترك أي طلب آخر يمر بشكل طبيعي
-  }
+  // تجاهل: طلبات POST، chrome-extension، وغير HTTP
+  if (req.method !== 'GET') return;
+  if (!url.startsWith('http')) return;
 
+  // تجاهل: API التفسير (نصوص، نحفظها في localStorage مو هنا)
+  if (url.includes('alquran.cloud')) return;
+
+  // كل شي تاني: Cache First ثم Network مع تخزين
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse; // موجود محفوظ، نعطيه فوراً
-      }
+    caches.open(CACHE).then(async cache => {
+      // حاول من الكاش أولاً
+      const cached = await cache.match(req, { ignoreSearch: false });
+      if (cached) return cached;
 
-      return fetch(event.request)
-        .then((networkResponse) => {
-          // نحفظ نسخة من الاستجابة للاستخدام القادم بدون نت
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-          return networkResponse;
-        })
-        .catch(() => {
-          // لا يوجد نت ولا نسخة محفوظة لهذا الملف
+      // مو في الكاش، اجلبه من الشبكة
+      try {
+        const response = await fetch(req);
+
+        // نخزّن فقط الاستجابات الناجحة
+        if (response && response.status === 200) {
+          // نخزّن: صفحات المصحف، الخطوط، الصوت، ملفات التطبيق
+          const shouldCache =
+            url.includes('/pages/') ||
+            url.includes('fonts-woff2') ||
+            url.includes('everyayah.com') ||
+            url.includes('mp3quran.net') ||
+            url.includes('index.html') ||
+            url.includes('manifest.json') ||
+            url.endsWith('/');
+
+          if (shouldCache) {
+            cache.put(req, response.clone()).catch(() => {});
+          }
+        }
+
+        return response;
+      } catch (err) {
+        // لا يوجد نت ولا كاش — نرجع صفحة خطأ مناسبة
+        if (url.includes('.mp3')) {
+          return new Response('', { status: 503 });
+        }
+        if (url.includes('.json')) {
           return new Response(
-            JSON.stringify({
-              error: "لا يوجد اتصال بالإنترنت ولم تُحفظ هذه الصفحة مسبقاً",
-            }),
-            { headers: { "Content-Type": "application/json" } }
+            JSON.stringify({ error: 'offline' }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } }
           );
-        });
+        }
+        // للصفحة الرئيسية: نرجع index.html من الكاش مهما صار
+        const fallback = await cache.match('./index.html');
+        if (fallback) return fallback;
+
+        return new Response('التطبيق غير متاح بدون إنترنت', { status: 503 });
+      }
     })
   );
 });
