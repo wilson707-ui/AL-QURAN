@@ -1,11 +1,12 @@
 {
   "name": "المصحف الشريف",
   "short_name": "المصحف",
-  "description": "تطبيق المصحف الشريف للقراءة والاستماع بدون إعلانات",
+  "description": "تطبيق المصحف الشريف للقراءة والاستماع بدون إنترنت",
   "start_url": "https://wilson707-ui.github.io/AL-QURAN/",
+  "scope": "/AL-QURAN/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1f2937",
+  "background_color": "#0f1410",
+  "theme_color": "#0f1410",
   "orientation": "portrait",
   "icons": [
     {
