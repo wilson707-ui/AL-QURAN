@@ -114,6 +114,56 @@
   .theme-dot.t-blue{background:radial-gradient(circle at 40% 40%,#6a9fd8,#1e2d4a);}
   .theme-dot.t-green{background:radial-gradient(circle at 40% 40%,#5dbf6e,#1e3d22);}
   .theme-dot.t-sky{background:radial-gradient(circle at 40% 40%,#4db8e0,#1c3444);}
+
+  /* ===== علامة الحفظ ===== */
+  .bookmark-btn {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .bookmark-btn:hover { border-color: var(--gold-soft); }
+  .bookmark-btn.bookmarked { color: var(--gold); border-color: var(--gold); background: rgba(201,163,86,0.15); }
+  .bookmark-btn svg { width: 18px; height: 18px; }
+
+  .bookmark-toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gold);
+    color: #1a1208;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .bookmark-toast.show { opacity: 1; }
+
+  .goto-bookmark-btn {
+    background: transparent;
+    border: 1px solid var(--gold-soft);
+    color: var(--gold);
+    padding: 7px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    display: flex; align-items: center; gap: 5px;
+    transition: all 0.2s;
+  }
+  .goto-bookmark-btn:hover { background: rgba(201,163,86,0.15); }
+  .goto-bookmark-btn svg { width: 13px; height: 13px; }
 </style>
 </head>
 <body>
@@ -150,6 +200,8 @@ const SVG={
   fwd:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
   play:`<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>`,
   stop:`<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="1"/></svg>`,
+  bookmark_empty:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`,
+  bookmark_filled:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`,
   gear:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
 };
 
@@ -163,12 +215,14 @@ function renderShell(){
     <div class="topbar">
       <button class="icon-btn" id="prevBtn">${SVG.fwd}</button>
       <div style="text-align:center"><h1 id="surahTitle">القرآن الكريم</h1><div class="surah-info" id="surahInfo">جاري التحميل...</div></div>
+      <button class="bookmark-btn" id="bookmarkBtn" title="علامة الحفظ">${SVG.bookmark_empty}</button>
       <button class="icon-btn" id="settingsBtn" title="الإعدادات">${SVG.gear}</button>
     </div>
     <div class="audio-bar">
       <button class="audio-btn" id="playPageBtn">${SVG.play}<span>تشغيل الصفحة</span></button>
       <select class="reciter-select" id="reciterSel">${opts}</select>
       <span class="audio-status" id="audioStatus"></span>
+      <button class="goto-bookmark-btn" id="gotoBookmarkBtn" style="display:none">${SVG.bookmark_filled}<span id="gotoBookmarkLabel">علامتي</span></button>
     </div>
     <div class="page-wrap" id="pageWrap"><div class="status-msg"><div class="spinner"></div>تحميل الصفحة...</div></div>
     <div class="bottom-nav">
@@ -181,6 +235,9 @@ function renderShell(){
   document.getElementById('prevBtn2').onclick=()=>goToPage(currentPage-1);
   document.getElementById('nextBtn2').onclick=()=>goToPage(currentPage+1);
   document.getElementById('pageJump').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=parseInt(e.target.value);if(v>=1&&v<=TOTAL_PAGES)goToPage(v);}});
+  document.getElementById('bookmarkBtn').onclick = toggleBookmark;
+  updateBookmarkBtn();
+  updateGotoBookmarkBtn();
   document.getElementById('reciterSel').addEventListener('change',e=>{currentReciterId=e.target.value;localStorage.setItem('quran_reciter',currentReciterId);stopAudio();});
   document.getElementById('playPageBtn').onclick=togglePlayPage;
   initAudio();
@@ -292,7 +349,7 @@ async function startFullDownload(){
 }
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-if(localStorage.getItem('quran_fully_downloaded')==='true'){renderShell();goToPage(1);}
+if(localStorage.getItem('quran_fully_downloaded')==='true'){renderShell();goToPage(getLastPage());}
 else startFullDownload();
 
 async function ensureFontLoaded(fontName){
@@ -314,6 +371,7 @@ function codeToChar(code){return String.fromCharCode(code);}
 async function goToPage(pageNum){
   if(pageNum<1||pageNum>TOTAL_PAGES)return;
   stopAudio();currentPage=pageNum;
+  setLastPage(pageNum);
   const jump=document.getElementById('pageJump');if(jump)jump.value=pageNum;
   ['prevBtn','prevBtn2'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=pageNum<=1;});
   ['nextBtn','nextBtn2'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=pageNum>=TOTAL_PAGES;});
@@ -327,6 +385,7 @@ async function goToPage(pageNum){
     renderPage(data);
     if(data.surahs&&data.surahs.length>0)document.getElementById('surahTitle').textContent=data.surahs[0].name_arabic;
     document.getElementById('surahInfo').textContent=`صفحة ${pageNum}`;
+    updateBookmarkBtn();
     window.scrollTo(0,0);
   }catch(err){
     const msg=!navigator.onLine?`أنت غير متصل وهذه الصفحة (${pageNum}) لم تُحفظ بعد.`:`تعذّر تحميل الصفحة ${pageNum}.`;
@@ -633,6 +692,70 @@ function setTheme(t){
 
 // تطبيق الثيم عند التحميل
 applyTheme(currentTheme);
+
+
+/* =====================================================
+   علامة الحفظ + حفظ آخر صفحة تلقائياً
+   ===================================================== */
+
+function getBookmark(){ return parseInt(localStorage.getItem('quran_bookmark') || '0', 10); }
+function setBookmark(p){ localStorage.setItem('quran_bookmark', String(p)); }
+function getLastPage(){ return parseInt(localStorage.getItem('quran_last_page') || '1', 10); }
+function setLastPage(p){ localStorage.setItem('quran_last_page', String(p)); }
+
+function toggleBookmark(){
+  const bm = getBookmark();
+  if(bm === currentPage){
+    // إلغاء العلامة
+    localStorage.removeItem('quran_bookmark');
+    showToast('تم حذف علامة الحفظ');
+  } else {
+    // حفظ الصفحة الحالية
+    setBookmark(currentPage);
+    showToast('✓ تم حفظ صفحة ' + currentPage);
+  }
+  updateBookmarkBtn();
+  updateGotoBookmarkBtn();
+}
+
+function updateBookmarkBtn(){
+  const btn = document.getElementById('bookmarkBtn');
+  if(!btn) return;
+  const bm = getBookmark();
+  if(bm === currentPage){
+    btn.classList.add('bookmarked');
+    btn.innerHTML = SVG.bookmark_filled;
+  } else {
+    btn.classList.remove('bookmarked');
+    btn.innerHTML = SVG.bookmark_empty;
+  }
+}
+
+function updateGotoBookmarkBtn(){
+  const btn = document.getElementById('gotoBookmarkBtn');
+  if(!btn) return;
+  const bm = getBookmark();
+  if(bm > 0){
+    btn.style.display = 'flex';
+    document.getElementById('gotoBookmarkLabel').textContent = 'ص ' + bm;
+    btn.onclick = () => goToPage(bm);
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function showToast(msg){
+  let toast = document.getElementById('bookmarkToast');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'bookmarkToast';
+    toast.className = 'bookmark-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
 
 </script>
 </body>
