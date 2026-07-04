@@ -1796,6 +1796,76 @@ const SURAHS_INDEX = [
   {num:114,name:'الناس',         page:604},
 ];
 
+
+/* =====================================================
+   البحث عن آية - بدون تشكيل
+   ===================================================== */
+
+// إزالة التشكيل للمقارنة
+function removeTashkeel(text){
+  return text.replace(/[ً-ٰٟۖ-ۜ۟-۪ۤۧۨ-ۭ]/g, '').trim();
+}
+
+// بيانات الآيات المحملة (تتحمل مرة وحدة)
+let ayahsData = null;
+let ayahsLoading = false;
+
+async function loadAyahsData(onProgress){
+  if(ayahsData) return ayahsData;
+  if(ayahsLoading) return null;
+  ayahsLoading = true;
+
+  // نحاول نجيبها من localStorage أولاً
+  try{
+    const saved = localStorage.getItem('ayahs_data_v1');
+    if(saved){
+      ayahsData = JSON.parse(saved);
+      ayahsLoading = false;
+      return ayahsData;
+    }
+  }catch{}
+
+  // نحملها من API
+  const surahAyatCounts = [7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
+  const data = [];
+  let done = 0;
+  const total = 6236;
+
+  try{
+    for(let s=1; s<=114; s++){
+      const res = await fetch(`${TAFSIR_BASE}/surah/${s}/ar.alafasy`);
+      if(!res.ok) throw new Error('fail');
+      const json = await res.json();
+      const ayahs = json.data?.ayahs || [];
+      ayahs.forEach(a => {
+        data.push({
+          surah: s,
+          surahName: json.data.englishName,
+          surahNameAr: json.data.name,
+          ayah: a.numberInSurah,
+          text: a.text,
+          textClean: removeTashkeel(a.text),
+          page: a.page,
+        });
+      });
+      done += ayahs.length;
+      if(onProgress) onProgress(Math.round(done/total*100), done, total);
+      await new Promise(r=>setTimeout(r,50));
+    }
+
+    ayahsData = data;
+    try{ localStorage.setItem('ayahs_data_v1', JSON.stringify(data)); }catch{}
+    ayahsLoading = false;
+    return data;
+  }catch(e){
+    ayahsLoading = false;
+    return null;
+  }
+}
+
+let searchAyahTimeout = null;
+let currentSearchQuery = '';
+
 function renderSearch(){
   pushScreen('search');
   app.innerHTML=`
@@ -1806,41 +1876,119 @@ function renderSearch(){
         <div style="width:36px"></div>
       </div>
       <div class="search-bar">
-        <input class="search-input" id="searchInput" placeholder="ابحث عن سورة... (مثال: البقرة)" autofocus>
+        <input class="search-input" id="searchInput" placeholder="ابحث عن سورة أو آية..." autofocus>
       </div>
-      <div class="search-results" id="searchResults">
+      <div id="searchResults" class="search-results">
         <div class="search-hint">
-          اكتب اسم السورة للبحث<br>
-          <span style="color:var(--gold)">114 سورة</span> متاحة
+          ابحث عن <span style="color:var(--gold)">سورة</span> أو <span style="color:var(--gold)">نص آية</span><br>
+          <span style="font-size:12px;opacity:.7">البحث بدون تشكيل مدعوم</span>
         </div>
       </div>
     </div>`;
 
   const input = document.getElementById('searchInput');
+
   input.addEventListener('input', ()=>{
+    clearTimeout(searchAyahTimeout);
     const q = input.value.trim();
-    const results = document.getElementById('searchResults');
-    if(!q){ results.innerHTML='<div class="search-hint">اكتب اسم السورة للبحث<br><span style="color:var(--gold)">114 سورة</span> متاحة</div>'; return; }
+    currentSearchQuery = q;
 
-    const matches = SURAHS_INDEX.filter(s =>
-      s.name.includes(q) || String(s.num).includes(q)
-    );
-
-    if(!matches.length){
-      results.innerHTML='<div class="search-empty">لم يتم العثور على نتائج</div>';
+    if(!q){
+      document.getElementById('searchResults').innerHTML=`<div class="search-hint">ابحث عن <span style="color:var(--gold)">سورة</span> أو <span style="color:var(--gold)">نص آية</span><br><span style="font-size:12px;opacity:.7">البحث بدون تشكيل مدعوم</span></div>`;
       return;
     }
 
-    results.innerHTML = matches.map(s => `
-      <div class="search-result-item" onclick="goToPage(${s.page});history.back();">
-        <div class="search-result-surah">سورة ${s.name}</div>
-        <div class="search-result-page">📄 صفحة ${s.page} &nbsp;|&nbsp; السورة رقم ${s.num}</div>
-      </div>`).join('');
+    // بحث فوري عن السور
+    const surahMatches = SURAHS_INDEX.filter(s =>
+      s.name.includes(q) || String(s.num) === q
+    );
+
+    let surahHtml = '';
+    if(surahMatches.length){
+      surahHtml = `<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px;padding:0 4px;">السور (${surahMatches.length})</div>` +
+        surahMatches.map(s => `
+          <div class="search-result-item" onclick="goToPage(${s.page});history.back();">
+            <div class="search-result-surah">📖 سورة ${s.name}</div>
+            <div class="search-result-page">صفحة ${s.page} | السورة رقم ${s.num}</div>
+          </div>`).join('');
+    }
+
+    document.getElementById('searchResults').innerHTML = surahHtml +
+      `<div style="font-size:12px;color:var(--ink-dim);margin:8px 4px;">جاري البحث في الآيات...</div>`;
+
+    // بحث في الآيات بعد توقف قصير
+    searchAyahTimeout = setTimeout(()=>performAyahSearch(q, surahHtml), 400);
   });
 
-  // فوكس تلقائي
   setTimeout(()=>input.focus(), 100);
+
+  // نحمّل البيانات في الخلفية إن لم تكن محملة
+  if(!ayahsData){
+    setTimeout(()=>{
+      loadAyahsData();
+    }, 1000);
+  }
 }
+
+async function performAyahSearch(q, surahHtml){
+  if(q !== currentSearchQuery) return;
+
+  const results = document.getElementById('searchResults');
+  if(!results) return;
+
+  // إذا البيانات مش محملة بعد
+  if(!ayahsData){
+    results.innerHTML = surahHtml + `
+      <div style="text-align:center;padding:20px;">
+        <div style="color:var(--ink-dim);font-size:13px;margin-bottom:12px;">بيانات الآيات غير محملة بعد</div>
+        <button class="audio-btn" onclick="downloadAyahsForSearch()">⬇ تحميل (مرة وحدة فقط ~2MB)</button>
+        <div id="dlAyahProg" style="color:var(--ink-dim);font-size:12px;margin-top:8px;"></div>
+      </div>`;
+    return;
+  }
+
+  const qClean = removeTashkeel(q);
+  if(qClean.length < 2){ results.innerHTML = surahHtml + '<div class="search-empty">اكتب كلمتين على الأقل للبحث في الآيات</div>'; return; }
+
+  const matches = ayahsData.filter(a => a.textClean.includes(qClean)).slice(0,30);
+
+  if(!matches.length){
+    results.innerHTML = surahHtml + (surahHtml ? '' : '<div class="search-empty">لم يتم العثور على نتائج</div>');
+    return;
+  }
+
+  const ayahsHtml = `<div style="font-size:12px;color:var(--ink-dim);margin:8px 4px;">الآيات (${matches.length}${matches.length===30?'+':''})</div>` +
+    matches.map(a => `
+      <div class="search-result-item" onclick="goToPage(${a.page});history.back();">
+        <div class="search-result-surah">${a.surahNameAr} — آية ${a.ayah}</div>
+        <div style="font-size:15px;color:var(--ink);line-height:2;margin:6px 0;direction:rtl;">${a.text}</div>
+        <div class="search-result-page">صفحة ${a.page}</div>
+      </div>`).join('');
+
+  results.innerHTML = surahHtml + ayahsHtml;
+}
+
+async function downloadAyahsForSearch(){
+  const prog = document.getElementById('dlAyahProg');
+  const btn = document.querySelector('.audio-btn');
+  if(btn){ btn.disabled=true; btn.textContent='جاري التحميل...'; }
+
+  const data = await loadAyahsData((percent, done, total)=>{
+    if(prog) prog.textContent = `${done} / ${total} آية (${percent}%)`;
+  });
+
+  if(data){
+    if(prog) prog.textContent = '✓ اكتمل التحميل!';
+    setTimeout(()=>{
+      const q = document.getElementById('searchInput')?.value?.trim();
+      if(q) performAyahSearch(q, '');
+    }, 500);
+  } else {
+    if(prog) prog.textContent = 'فشل التحميل، تحقق من الإنترنت';
+    if(btn){ btn.disabled=false; btn.textContent='⬇ تحميل (مرة وحدة فقط ~2MB)'; }
+  }
+}
+
 
 </script>
 </body>
