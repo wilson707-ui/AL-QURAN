@@ -462,6 +462,8 @@ async function goToPage(pageNum){
   if(pageNum<1||pageNum>TOTAL_PAGES)return;
   stopAudio();currentPage=pageNum;
   setLastPage(pageNum);
+  // تسجيل الصفحة بتاريخ التنقل عشان زر Back يرجع لها
+  history.pushState({ page: pageNum }, '', '#p' + pageNum);
   const jump=document.getElementById('pageJump');if(jump)jump.value=pageNum;
   ['prevBtn','prevBtn2'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=pageNum<=1;});
   ['nextBtn','nextBtn2'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=pageNum>=TOTAL_PAGES;});
@@ -1449,6 +1451,17 @@ function calcPrayerTimes(lat, lng, date){
     {name:'العشاء',   time: fmt(noon+(ishaT||0)),    min: toMin(noon+(ishaT||0))},
   ];
 }
+
+// زر Back بالجوال - يرجع للصفحة السابقة بدل إغلاق التطبيق
+window.addEventListener('popstate', function(e) {
+  if (e.state && e.state.page) {
+    // رجع لصفحة سابقة
+    goToPage(e.state.page);
+  } else {
+    // ما في صفحة سابقة - نمنع الإغلاق بإعادة تسجيل الصفحة الحالية
+    history.pushState({ page: currentPage || 1 }, '', '#p' + (currentPage || 1));
+  }
+});
 
 function getNextPrayer(prayers){
   const now = new Date();
