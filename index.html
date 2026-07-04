@@ -289,6 +289,46 @@
   .search-result-page { font-size: 11px; color: var(--ink-dim); margin-top: 6px; }
   .search-empty { text-align: center; padding: 40px 20px; color: var(--ink-dim); font-size: 14px; }
   .search-hint { text-align: center; padding: 30px 20px; color: var(--ink-dim); font-size: 13px; line-height: 1.8; }
+
+  /* ===== قائمة السور ===== */
+  .surah-list { padding: 8px; }
+  .surah-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-radius: 12px; cursor: pointer;
+    transition: background 0.15s; margin-bottom: 4px;
+  }
+  .surah-item:hover { background: var(--bg-elevated); }
+  .surah-item:active { background: rgba(201,163,86,0.1); }
+  .surah-num { 
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--bg-elevated); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: var(--gold); flex-shrink: 0;
+  }
+  .surah-info { flex: 1; margin: 0 12px; }
+  .surah-name { font-size: 16px; color: var(--ink); font-weight: 500; }
+  .surah-meta { font-size: 11px; color: var(--ink-dim); margin-top: 2px; }
+  .surah-page-badge { 
+    font-size: 11px; color: var(--ink-dim);
+    background: var(--bg-elevated); padding: 3px 8px;
+    border-radius: 10px; border: 1px solid var(--line);
+  }
+  .surah-list-search {
+    padding: 10px 12px;
+    position: sticky; top: 57px; background: var(--bg); z-index: 9;
+    border-bottom: 1px solid var(--line);
+  }
+  .surah-list-input {
+    width: 100%; background: var(--bg-elevated); border: 1px solid var(--line);
+    color: var(--ink); padding: 9px 14px; border-radius: 20px;
+    font-family: inherit; font-size: 14px; direction: rtl;
+  }
+  .surah-list-input:focus { outline: none; border-color: var(--gold-soft); }
+  .surah-type-badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-right: 4px;
+  }
+  .makkiyah { background: rgba(201,163,86,0.15); color: var(--gold); }
+  .madaniyah { background: rgba(93,191,110,0.15); color: #5dbf6e; }
 </style>
 </head>
 <body>
@@ -327,6 +367,7 @@ const SVG={
   stop:`<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="1"/></svg>`,
   bookmark_empty:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`,
   bookmark_filled:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`,
+  list:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
   search:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
   moon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
   home:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
@@ -345,6 +386,7 @@ function renderShell(){
       <div style="text-align:center"><h1 id="surahTitle">القرآن الكريم</h1><div class="surah-info" id="surahInfo">جاري التحميل...</div></div>
       <button class="bookmark-btn" id="bookmarkBtn" title="علامة الحفظ">${SVG.bookmark_empty}</button>
       <button class="icon-btn night-btn" id="nightBtn" title="وضع الليل">${SVG.moon}</button>
+      <button class="icon-btn" id="surahListBtn" title="قائمة السور">${SVG.list}</button>
       <button class="icon-btn" id="searchBtn" title="بحث">${SVG.search}</button>
       <button class="icon-btn" id="homeBtn" title="الرئيسية">${SVG.home}</button>
       <button class="icon-btn" id="settingsBtn" title="الإعدادات">${SVG.gear}</button>
@@ -369,6 +411,7 @@ function renderShell(){
   document.getElementById('bookmarkBtn').onclick = toggleBookmark;
   document.getElementById('homeBtn').onclick = renderHome;
   document.getElementById('nightBtn').onclick = toggleNightMode;
+  document.getElementById('surahListBtn').onclick = renderSurahList;
   document.getElementById('searchBtn').onclick = renderSearch;
   updateNightBtn();
   updateBookmarkBtn();
@@ -1629,6 +1672,8 @@ window.addEventListener('popstate', function(e){
     renderDuaCategories();
   } else if(state.screen === 'tasbih'){
     renderTasbih();
+  } else if(state.screen === 'surah_list'){
+    renderSurahList();
   } else if(state.screen === 'prayer'){
     renderPrayerTimes();
   } else if(state.screen && state.screen.startsWith('dua_')){
@@ -1989,6 +2034,169 @@ async function downloadAyahsForSearch(){
   }
 }
 
+
+
+/* =====================================================
+   قائمة السور كاملة
+   ===================================================== */
+const SURAHS_FULL = [
+  {num:1,  name:'الفاتحة',    ayat:7,   type:'مكية',  page:1},
+  {num:2,  name:'البقرة',     ayat:286, type:'مدنية', page:2},
+  {num:3,  name:'آل عمران',   ayat:200, type:'مدنية', page:50},
+  {num:4,  name:'النساء',     ayat:176, type:'مدنية', page:77},
+  {num:5,  name:'المائدة',    ayat:120, type:'مدنية', page:106},
+  {num:6,  name:'الأنعام',    ayat:165, type:'مكية',  page:128},
+  {num:7,  name:'الأعراف',    ayat:206, type:'مكية',  page:151},
+  {num:8,  name:'الأنفال',    ayat:75,  type:'مدنية', page:177},
+  {num:9,  name:'التوبة',     ayat:129, type:'مدنية', page:187},
+  {num:10, name:'يونس',       ayat:109, type:'مكية',  page:208},
+  {num:11, name:'هود',        ayat:123, type:'مكية',  page:221},
+  {num:12, name:'يوسف',       ayat:111, type:'مكية',  page:235},
+  {num:13, name:'الرعد',      ayat:43,  type:'مدنية', page:249},
+  {num:14, name:'إبراهيم',    ayat:52,  type:'مكية',  page:255},
+  {num:15, name:'الحجر',      ayat:99,  type:'مكية',  page:262},
+  {num:16, name:'النحل',      ayat:128, type:'مكية',  page:267},
+  {num:17, name:'الإسراء',    ayat:111, type:'مكية',  page:282},
+  {num:18, name:'الكهف',      ayat:110, type:'مكية',  page:293},
+  {num:19, name:'مريم',       ayat:98,  type:'مكية',  page:305},
+  {num:20, name:'طه',         ayat:135, type:'مكية',  page:312},
+  {num:21, name:'الأنبياء',   ayat:112, type:'مكية',  page:322},
+  {num:22, name:'الحج',       ayat:78,  type:'مدنية', page:332},
+  {num:23, name:'المؤمنون',   ayat:118, type:'مكية',  page:342},
+  {num:24, name:'النور',      ayat:64,  type:'مدنية', page:350},
+  {num:25, name:'الفرقان',    ayat:77,  type:'مكية',  page:359},
+  {num:26, name:'الشعراء',    ayat:227, type:'مكية',  page:367},
+  {num:27, name:'النمل',      ayat:93,  type:'مكية',  page:377},
+  {num:28, name:'القصص',      ayat:88,  type:'مكية',  page:385},
+  {num:29, name:'العنكبوت',   ayat:69,  type:'مكية',  page:396},
+  {num:30, name:'الروم',      ayat:60,  type:'مكية',  page:404},
+  {num:31, name:'لقمان',      ayat:34,  type:'مكية',  page:411},
+  {num:32, name:'السجدة',     ayat:30,  type:'مكية',  page:415},
+  {num:33, name:'الأحزاب',    ayat:73,  type:'مدنية', page:418},
+  {num:34, name:'سبأ',        ayat:54,  type:'مكية',  page:428},
+  {num:35, name:'فاطر',       ayat:45,  type:'مكية',  page:434},
+  {num:36, name:'يس',         ayat:83,  type:'مكية',  page:440},
+  {num:37, name:'الصافات',    ayat:182, type:'مكية',  page:446},
+  {num:38, name:'ص',          ayat:88,  type:'مكية',  page:453},
+  {num:39, name:'الزمر',      ayat:75,  type:'مكية',  page:458},
+  {num:40, name:'غافر',       ayat:85,  type:'مكية',  page:467},
+  {num:41, name:'فصلت',       ayat:54,  type:'مكية',  page:477},
+  {num:42, name:'الشورى',     ayat:53,  type:'مكية',  page:483},
+  {num:43, name:'الزخرف',     ayat:89,  type:'مكية',  page:489},
+  {num:44, name:'الدخان',     ayat:59,  type:'مكية',  page:496},
+  {num:45, name:'الجاثية',    ayat:37,  type:'مكية',  page:499},
+  {num:46, name:'الأحقاف',    ayat:35,  type:'مكية',  page:502},
+  {num:47, name:'محمد',       ayat:38,  type:'مدنية', page:507},
+  {num:48, name:'الفتح',      ayat:29,  type:'مدنية', page:511},
+  {num:49, name:'الحجرات',    ayat:18,  type:'مدنية', page:515},
+  {num:50, name:'ق',          ayat:45,  type:'مكية',  page:518},
+  {num:51, name:'الذاريات',   ayat:60,  type:'مكية',  page:520},
+  {num:52, name:'الطور',      ayat:49,  type:'مكية',  page:523},
+  {num:53, name:'النجم',      ayat:62,  type:'مكية',  page:526},
+  {num:54, name:'القمر',      ayat:55,  type:'مكية',  page:528},
+  {num:55, name:'الرحمن',     ayat:78,  type:'مدنية', page:531},
+  {num:56, name:'الواقعة',    ayat:96,  type:'مكية',  page:534},
+  {num:57, name:'الحديد',     ayat:29,  type:'مدنية', page:537},
+  {num:58, name:'المجادلة',   ayat:22,  type:'مدنية', page:542},
+  {num:59, name:'الحشر',      ayat:24,  type:'مدنية', page:545},
+  {num:60, name:'الممتحنة',   ayat:13,  type:'مدنية', page:549},
+  {num:61, name:'الصف',       ayat:14,  type:'مدنية', page:551},
+  {num:62, name:'الجمعة',     ayat:11,  type:'مدنية', page:553},
+  {num:63, name:'المنافقون',  ayat:11,  type:'مدنية', page:554},
+  {num:64, name:'التغابن',    ayat:18,  type:'مدنية', page:556},
+  {num:65, name:'الطلاق',     ayat:12,  type:'مدنية', page:558},
+  {num:66, name:'التحريم',    ayat:12,  type:'مدنية', page:560},
+  {num:67, name:'الملك',      ayat:30,  type:'مكية',  page:562},
+  {num:68, name:'القلم',      ayat:52,  type:'مكية',  page:564},
+  {num:69, name:'الحاقة',     ayat:52,  type:'مكية',  page:566},
+  {num:70, name:'المعارج',    ayat:44,  type:'مكية',  page:568},
+  {num:71, name:'نوح',        ayat:28,  type:'مكية',  page:570},
+  {num:72, name:'الجن',       ayat:28,  type:'مكية',  page:572},
+  {num:73, name:'المزمل',     ayat:20,  type:'مكية',  page:574},
+  {num:74, name:'المدثر',     ayat:56,  type:'مكية',  page:575},
+  {num:75, name:'القيامة',    ayat:40,  type:'مكية',  page:577},
+  {num:76, name:'الإنسان',    ayat:31,  type:'مدنية', page:578},
+  {num:77, name:'المرسلات',   ayat:50,  type:'مكية',  page:580},
+  {num:78, name:'النبأ',      ayat:40,  type:'مكية',  page:582},
+  {num:79, name:'النازعات',   ayat:46,  type:'مكية',  page:583},
+  {num:80, name:'عبس',        ayat:42,  type:'مكية',  page:585},
+  {num:81, name:'التكوير',    ayat:29,  type:'مكية',  page:586},
+  {num:82, name:'الانفطار',   ayat:19,  type:'مكية',  page:587},
+  {num:83, name:'المطففين',   ayat:36,  type:'مكية',  page:587},
+  {num:84, name:'الانشقاق',   ayat:25,  type:'مكية',  page:589},
+  {num:85, name:'البروج',     ayat:22,  type:'مكية',  page:590},
+  {num:86, name:'الطارق',     ayat:17,  type:'مكية',  page:591},
+  {num:87, name:'الأعلى',     ayat:19,  type:'مكية',  page:591},
+  {num:88, name:'الغاشية',    ayat:26,  type:'مكية',  page:592},
+  {num:89, name:'الفجر',      ayat:30,  type:'مكية',  page:593},
+  {num:90, name:'البلد',      ayat:20,  type:'مكية',  page:594},
+  {num:91, name:'الشمس',      ayat:15,  type:'مكية',  page:595},
+  {num:92, name:'الليل',      ayat:21,  type:'مكية',  page:595},
+  {num:93, name:'الضحى',      ayat:11,  type:'مكية',  page:596},
+  {num:94, name:'الشرح',      ayat:8,   type:'مكية',  page:596},
+  {num:95, name:'التين',      ayat:8,   type:'مكية',  page:597},
+  {num:96, name:'العلق',      ayat:19,  type:'مكية',  page:597},
+  {num:97, name:'القدر',      ayat:5,   type:'مكية',  page:598},
+  {num:98, name:'البينة',     ayat:8,   type:'مدنية', page:598},
+  {num:99, name:'الزلزلة',    ayat:8,   type:'مدنية', page:599},
+  {num:100,name:'العاديات',   ayat:11,  type:'مكية',  page:599},
+  {num:101,name:'القارعة',    ayat:11,  type:'مكية',  page:600},
+  {num:102,name:'التكاثر',    ayat:8,   type:'مكية',  page:600},
+  {num:103,name:'العصر',      ayat:3,   type:'مكية',  page:601},
+  {num:104,name:'الهمزة',     ayat:9,   type:'مكية',  page:601},
+  {num:105,name:'الفيل',      ayat:5,   type:'مكية',  page:601},
+  {num:106,name:'قريش',       ayat:4,   type:'مكية',  page:602},
+  {num:107,name:'الماعون',    ayat:7,   type:'مكية',  page:602},
+  {num:108,name:'الكوثر',     ayat:3,   type:'مكية',  page:602},
+  {num:109,name:'الكافرون',   ayat:6,   type:'مكية',  page:603},
+  {num:110,name:'النصر',      ayat:3,   type:'مدنية', page:603},
+  {num:111,name:'المسد',      ayat:5,   type:'مكية',  page:603},
+  {num:112,name:'الإخلاص',    ayat:4,   type:'مكية',  page:604},
+  {num:113,name:'الفلق',      ayat:5,   type:'مكية',  page:604},
+  {num:114,name:'الناس',      ayat:6,   type:'مدنية', page:604},
+];
+
+function renderSurahList(){
+  pushScreen('surah_list');
+
+  function buildList(filter=''){
+    const filtered = filter
+      ? SURAHS_FULL.filter(s => s.name.includes(filter) || String(s.num).includes(filter))
+      : SURAHS_FULL;
+
+    return filtered.map(s => `
+      <div class="surah-item" onclick="goToPage(${s.page});history.back();">
+        <div class="surah-num">${s.num}</div>
+        <div class="surah-info">
+          <div class="surah-name">سورة ${s.name}</div>
+          <div class="surah-meta">
+            <span class="surah-type-badge ${s.type==='مكية'?'makkiyah':'madaniyah'}">${s.type}</span>
+            ${s.ayat} آية
+          </div>
+        </div>
+        <div class="surah-page-badge">ص ${s.page}</div>
+      </div>`).join('');
+  }
+
+  app.innerHTML=`
+    <div class="sub-screen">
+      <div class="sub-topbar">
+        <button class="back-btn" onclick="history.back()">${SVG.back}</button>
+        <h2>📋 السور</h2>
+        <div style="width:36px"></div>
+      </div>
+      <div class="surah-list-search">
+        <input class="surah-list-input" id="surahListInput" placeholder="ابحث عن سورة...">
+      </div>
+      <div class="surah-list" id="surahListContainer">
+        ${buildList()}
+      </div>
+    </div>`;
+
+  document.getElementById('surahListInput').addEventListener('input', e=>{
+    document.getElementById('surahListContainer').innerHTML = buildList(e.target.value.trim());
+  });
+}
 
 </script>
 </body>
