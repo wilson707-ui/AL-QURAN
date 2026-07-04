@@ -251,6 +251,44 @@
   .support-btn-icon{font-size:24px;}
   .support-btn-text{font-size:14px;font-weight:600;}
   .support-btn-sub{font-size:12px;color:var(--ink-dim);}
+
+  /* ===== وضع الليل ===== */
+  body.night-mode {
+    --bg:#050805; --bg-elevated:#0a0f0a; --ink:#c8c4b4; --ink-dim:#6a7a6a;
+    --gold:#a08030; --gold-soft:#6a5820; --line:#181e18;
+    --page-bg:#0d1208; --page-border:#1a2218; --page-ink:#c8c4b4;
+  }
+  body.night-mode .mushaf-page { box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
+
+  .night-btn { transition: all 0.3s; }
+  .night-btn.active { color: #6ab0ff; border-color: #3a6aaa; }
+
+  /* ===== البحث ===== */
+  .search-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-elevated);
+    position: sticky; top: 57px; z-index: 9;
+  }
+  .search-input {
+    flex: 1; background: var(--bg); border: 1px solid var(--line);
+    color: var(--ink); padding: 9px 14px; border-radius: 20px;
+    font-family: inherit; font-size: 14px; direction: rtl;
+  }
+  .search-input:focus { outline: none; border-color: var(--gold-soft); }
+  .search-input::placeholder { color: var(--ink-dim); }
+  .search-results { padding: 12px; }
+  .search-result-item {
+    background: var(--bg-elevated); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+    cursor: pointer; transition: border-color 0.2s;
+  }
+  .search-result-item:hover { border-color: var(--gold-soft); }
+  .search-result-surah { font-size: 13px; color: var(--gold); margin-bottom: 6px; font-weight: 600; }
+  .search-result-page { font-size: 11px; color: var(--ink-dim); margin-top: 6px; }
+  .search-empty { text-align: center; padding: 40px 20px; color: var(--ink-dim); font-size: 14px; }
+  .search-hint { text-align: center; padding: 30px 20px; color: var(--ink-dim); font-size: 13px; line-height: 1.8; }
 </style>
 </head>
 <body>
@@ -289,6 +327,8 @@ const SVG={
   stop:`<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="1"/></svg>`,
   bookmark_empty:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`,
   bookmark_filled:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`,
+  search:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  moon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
   home:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
   gear:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
 };
@@ -304,6 +344,8 @@ function renderShell(){
       <button class="icon-btn" id="prevBtn">${SVG.fwd}</button>
       <div style="text-align:center"><h1 id="surahTitle">القرآن الكريم</h1><div class="surah-info" id="surahInfo">جاري التحميل...</div></div>
       <button class="bookmark-btn" id="bookmarkBtn" title="علامة الحفظ">${SVG.bookmark_empty}</button>
+      <button class="icon-btn night-btn" id="nightBtn" title="وضع الليل">${SVG.moon}</button>
+      <button class="icon-btn" id="searchBtn" title="بحث">${SVG.search}</button>
       <button class="icon-btn" id="homeBtn" title="الرئيسية">${SVG.home}</button>
       <button class="icon-btn" id="settingsBtn" title="الإعدادات">${SVG.gear}</button>
     </div>
@@ -326,6 +368,9 @@ function renderShell(){
   document.getElementById('pageJump').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=parseInt(e.target.value);if(v>=1&&v<=TOTAL_PAGES)goToPage(v);}});
   document.getElementById('bookmarkBtn').onclick = toggleBookmark;
   document.getElementById('homeBtn').onclick = renderHome;
+  document.getElementById('nightBtn').onclick = toggleNightMode;
+  document.getElementById('searchBtn').onclick = renderSearch;
+  updateNightBtn();
   updateBookmarkBtn();
   updateGotoBookmarkBtn();
   document.getElementById('reciterSel').addEventListener('change',e=>{currentReciterId=e.target.value;localStorage.setItem('quran_reciter',currentReciterId);stopAudio();});
@@ -1593,6 +1638,209 @@ window.addEventListener('popstate', function(e){
     renderHome();
   }
 });
+
+
+/* =====================================================
+   وضع القراءة الليلي
+   ===================================================== */
+let isNightMode = localStorage.getItem('night_mode') === 'true';
+
+function applyNightMode(){
+  if(isNightMode){
+    document.body.classList.add('night-mode');
+  } else {
+    document.body.classList.remove('night-mode');
+  }
+}
+
+function toggleNightMode(){
+  isNightMode = !isNightMode;
+  localStorage.setItem('night_mode', isNightMode);
+  applyNightMode();
+  updateNightBtn();
+}
+
+function updateNightBtn(){
+  const btn = document.getElementById('nightBtn');
+  if(!btn) return;
+  if(isNightMode){
+    btn.classList.add('active');
+    btn.title = 'وضع النهار';
+  } else {
+    btn.classList.remove('active');
+    btn.title = 'وضع الليل';
+  }
+}
+
+// تطبيق وضع الليل عند التحميل
+applyNightMode();
+
+/* =====================================================
+   البحث عن سورة
+   ===================================================== */
+// قائمة السور مع أرقام صفحاتها
+const SURAHS_INDEX = [
+  {num:1,  name:'الفاتحة',       page:1},
+  {num:2,  name:'البقرة',        page:2},
+  {num:3,  name:'آل عمران',      page:50},
+  {num:4,  name:'النساء',        page:77},
+  {num:5,  name:'المائدة',       page:106},
+  {num:6,  name:'الأنعام',       page:128},
+  {num:7,  name:'الأعراف',       page:151},
+  {num:8,  name:'الأنفال',       page:177},
+  {num:9,  name:'التوبة',        page:187},
+  {num:10, name:'يونس',          page:208},
+  {num:11, name:'هود',           page:221},
+  {num:12, name:'يوسف',          page:235},
+  {num:13, name:'الرعد',         page:249},
+  {num:14, name:'إبراهيم',       page:255},
+  {num:15, name:'الحجر',         page:262},
+  {num:16, name:'النحل',         page:267},
+  {num:17, name:'الإسراء',       page:282},
+  {num:18, name:'الكهف',         page:293},
+  {num:19, name:'مريم',          page:305},
+  {num:20, name:'طه',            page:312},
+  {num:21, name:'الأنبياء',      page:322},
+  {num:22, name:'الحج',          page:332},
+  {num:23, name:'المؤمنون',      page:342},
+  {num:24, name:'النور',         page:350},
+  {num:25, name:'الفرقان',       page:359},
+  {num:26, name:'الشعراء',       page:367},
+  {num:27, name:'النمل',         page:377},
+  {num:28, name:'القصص',         page:385},
+  {num:29, name:'العنكبوت',      page:396},
+  {num:30, name:'الروم',         page:404},
+  {num:31, name:'لقمان',         page:411},
+  {num:32, name:'السجدة',        page:415},
+  {num:33, name:'الأحزاب',       page:418},
+  {num:34, name:'سبأ',           page:428},
+  {num:35, name:'فاطر',          page:434},
+  {num:36, name:'يس',            page:440},
+  {num:37, name:'الصافات',       page:446},
+  {num:38, name:'ص',             page:453},
+  {num:39, name:'الزمر',         page:458},
+  {num:40, name:'غافر',          page:467},
+  {num:41, name:'فصلت',          page:477},
+  {num:42, name:'الشورى',        page:483},
+  {num:43, name:'الزخرف',        page:489},
+  {num:44, name:'الدخان',        page:496},
+  {num:45, name:'الجاثية',       page:499},
+  {num:46, name:'الأحقاف',       page:502},
+  {num:47, name:'محمد',          page:507},
+  {num:48, name:'الفتح',         page:511},
+  {num:49, name:'الحجرات',       page:515},
+  {num:50, name:'ق',             page:518},
+  {num:51, name:'الذاريات',      page:520},
+  {num:52, name:'الطور',         page:523},
+  {num:53, name:'النجم',         page:526},
+  {num:54, name:'القمر',         page:528},
+  {num:55, name:'الرحمن',        page:531},
+  {num:56, name:'الواقعة',       page:534},
+  {num:57, name:'الحديد',        page:537},
+  {num:58, name:'المجادلة',      page:542},
+  {num:59, name:'الحشر',         page:545},
+  {num:60, name:'الممتحنة',      page:549},
+  {num:61, name:'الصف',          page:551},
+  {num:62, name:'الجمعة',        page:553},
+  {num:63, name:'المنافقون',     page:554},
+  {num:64, name:'التغابن',       page:556},
+  {num:65, name:'الطلاق',        page:558},
+  {num:66, name:'التحريم',       page:560},
+  {num:67, name:'الملك',         page:562},
+  {num:68, name:'القلم',         page:564},
+  {num:69, name:'الحاقة',        page:566},
+  {num:70, name:'المعارج',       page:568},
+  {num:71, name:'نوح',           page:570},
+  {num:72, name:'الجن',          page:572},
+  {num:73, name:'المزمل',        page:574},
+  {num:74, name:'المدثر',        page:575},
+  {num:75, name:'القيامة',       page:577},
+  {num:76, name:'الإنسان',       page:578},
+  {num:77, name:'المرسلات',      page:580},
+  {num:78, name:'النبأ',         page:582},
+  {num:79, name:'النازعات',      page:583},
+  {num:80, name:'عبس',           page:585},
+  {num:81, name:'التكوير',       page:586},
+  {num:82, name:'الانفطار',      page:587},
+  {num:83, name:'المطففين',      page:587},
+  {num:84, name:'الانشقاق',      page:589},
+  {num:85, name:'البروج',        page:590},
+  {num:86, name:'الطارق',        page:591},
+  {num:87, name:'الأعلى',        page:591},
+  {num:88, name:'الغاشية',       page:592},
+  {num:89, name:'الفجر',         page:593},
+  {num:90, name:'البلد',         page:594},
+  {num:91, name:'الشمس',         page:595},
+  {num:92, name:'الليل',         page:595},
+  {num:93, name:'الضحى',         page:596},
+  {num:94, name:'الشرح',         page:596},
+  {num:95, name:'التين',         page:597},
+  {num:96, name:'العلق',         page:597},
+  {num:97, name:'القدر',         page:598},
+  {num:98, name:'البينة',        page:598},
+  {num:99, name:'الزلزلة',       page:599},
+  {num:100,name:'العاديات',      page:599},
+  {num:101,name:'القارعة',       page:600},
+  {num:102,name:'التكاثر',       page:600},
+  {num:103,name:'العصر',         page:601},
+  {num:104,name:'الهمزة',        page:601},
+  {num:105,name:'الفيل',         page:601},
+  {num:106,name:'قريش',          page:602},
+  {num:107,name:'الماعون',       page:602},
+  {num:108,name:'الكوثر',        page:602},
+  {num:109,name:'الكافرون',      page:603},
+  {num:110,name:'النصر',         page:603},
+  {num:111,name:'المسد',         page:603},
+  {num:112,name:'الإخلاص',       page:604},
+  {num:113,name:'الفلق',         page:604},
+  {num:114,name:'الناس',         page:604},
+];
+
+function renderSearch(){
+  pushScreen('search');
+  app.innerHTML=`
+    <div class="sub-screen">
+      <div class="sub-topbar">
+        <button class="back-btn" onclick="history.back()">${SVG.back}</button>
+        <h2>🔍 البحث</h2>
+        <div style="width:36px"></div>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" id="searchInput" placeholder="ابحث عن سورة... (مثال: البقرة)" autofocus>
+      </div>
+      <div class="search-results" id="searchResults">
+        <div class="search-hint">
+          اكتب اسم السورة للبحث<br>
+          <span style="color:var(--gold)">114 سورة</span> متاحة
+        </div>
+      </div>
+    </div>`;
+
+  const input = document.getElementById('searchInput');
+  input.addEventListener('input', ()=>{
+    const q = input.value.trim();
+    const results = document.getElementById('searchResults');
+    if(!q){ results.innerHTML='<div class="search-hint">اكتب اسم السورة للبحث<br><span style="color:var(--gold)">114 سورة</span> متاحة</div>'; return; }
+
+    const matches = SURAHS_INDEX.filter(s =>
+      s.name.includes(q) || String(s.num).includes(q)
+    );
+
+    if(!matches.length){
+      results.innerHTML='<div class="search-empty">لم يتم العثور على نتائج</div>';
+      return;
+    }
+
+    results.innerHTML = matches.map(s => `
+      <div class="search-result-item" onclick="goToPage(${s.page});history.back();">
+        <div class="search-result-surah">سورة ${s.name}</div>
+        <div class="search-result-page">📄 صفحة ${s.page} &nbsp;|&nbsp; السورة رقم ${s.num}</div>
+      </div>`).join('');
+  });
+
+  // فوكس تلقائي
+  setTimeout(()=>input.focus(), 100);
+}
 
 </script>
 </body>
