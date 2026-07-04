@@ -462,8 +462,6 @@ async function goToPage(pageNum){
   if(pageNum<1||pageNum>TOTAL_PAGES)return;
   stopAudio();currentPage=pageNum;
   setLastPage(pageNum);
-  // تسجيل الصفحة بتاريخ التنقل عشان زر Back يرجع لها
-  history.pushState({ page: pageNum }, '', '#p' + pageNum);
   const jump=document.getElementById('pageJump');if(jump)jump.value=pageNum;
   ['prevBtn','prevBtn2'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=pageNum<=1;});
   ['nextBtn','nextBtn2'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=pageNum>=TOTAL_PAGES;});
@@ -855,6 +853,7 @@ function showToast(msg){
    ===================================================== */
 function renderHome(){
   stopAudio();
+  history.replaceState({screen:'home'},'','');
   app.innerHTML=`
     <div class="home-screen">
       <div class="home-header">
@@ -901,6 +900,7 @@ function renderHome(){
 }
 
 function goToQuran(){
+  pushScreen('quran');
   renderShell();
   goToPage(getLastPage());
 }
@@ -958,6 +958,7 @@ const ATHKAR = {
 const thikrCounters = {};
 
 function renderAthkar(tab='sabah'){
+  if(tab==='sabah') pushScreen('athkar');
   const list = ATHKAR[tab];
   const cardsHtml = list.map((t,i) => {
     const key = tab+'_'+i;
@@ -1261,6 +1262,7 @@ const DUAS = {
 };
 
 function renderDuaCategories(){
+  pushScreen('dua_cats');
   const catsHtml = DUA_CATEGORIES.map(c =>
     `<div class="dua-cat-btn" onclick="renderDuas('${c.id}')">
       <div class="dua-cat-icon">${c.icon}</div>
@@ -1282,6 +1284,7 @@ function renderDuaCategories(){
 }
 
 function renderDuas(catId){
+  pushScreen('dua_'+catId);
   const cat = DUA_CATEGORIES.find(c=>c.id===catId) || {icon:'🤲',name:'الأدعية'};
   const duas = DUAS[catId] || [];
   const duasHtml = duas.map(d =>
@@ -1318,6 +1321,7 @@ let tasbihCount = 0;
 let tasbihTypeIdx = 0;
 
 function renderTasbih(){
+  pushScreen('tasbih');
   const t = TASBIH_TYPES[tasbihTypeIdx];
   const done = tasbihCount >= t.target;
   const typeBtns = TASBIH_TYPES.map((tt,i) =>
@@ -1452,17 +1456,6 @@ function calcPrayerTimes(lat, lng, date){
   ];
 }
 
-// زر Back بالجوال - يرجع للصفحة السابقة بدل إغلاق التطبيق
-window.addEventListener('popstate', function(e) {
-  if (e.state && e.state.page) {
-    // رجع لصفحة سابقة
-    goToPage(e.state.page);
-  } else {
-    // ما في صفحة سابقة - نمنع الإغلاق بإعادة تسجيل الصفحة الحالية
-    history.pushState({ page: currentPage || 1 }, '', '#p' + (currentPage || 1));
-  }
-});
-
 function getNextPrayer(prayers){
   const now = new Date();
   const nowMin = now.getHours()*60 + now.getMinutes();
@@ -1485,6 +1478,7 @@ function formatCountdown(prayer){
 }
 
 function renderPrayerTimes(){
+  pushScreen('prayer');
   const loc = getSavedLocation();
   if(!loc){
     // اطلب الموقع
@@ -1568,6 +1562,37 @@ function showPrayerTimes(loc){
       </div>
     </div>`;
 }
+
+
+/* =====================================================
+   إدارة زر الرجوع في الجوال
+   ===================================================== */
+function pushScreen(name){
+  history.pushState({screen: name}, '', '');
+}
+
+window.addEventListener('popstate', function(e){
+  // لما يضغط زر الرجوع في الجوال
+  const state = e.state;
+  if(!state || !state.screen || state.screen === 'home'){
+    renderHome();
+  } else if(state.screen === 'quran'){
+    goToQuran();
+  } else if(state.screen === 'athkar'){
+    renderAthkar();
+  } else if(state.screen === 'dua_cats'){
+    renderDuaCategories();
+  } else if(state.screen === 'tasbih'){
+    renderTasbih();
+  } else if(state.screen === 'prayer'){
+    renderPrayerTimes();
+  } else if(state.screen && state.screen.startsWith('dua_')){
+    const catId = state.screen.replace('dua_','');
+    renderDuas(catId);
+  } else {
+    renderHome();
+  }
+});
 
 </script>
 </body>
