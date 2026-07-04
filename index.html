@@ -227,23 +227,7 @@
 .tasbih-target{font-size:13px;color:var(--ink-dim);margin-top:8px;}
 .tasbih-done{color:var(--gold);font-weight:600;}
 
-  /* ===== أوقات الصلاة ===== */
-  .prayer-screen{padding:16px;}
-  .prayer-location{display:flex;align-items:center;justify-content:space-between;background:var(--bg-elevated);border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:16px;}
-  .prayer-location-info{font-size:13px;color:var(--ink-dim);}
-  .prayer-location-name{font-size:15px;color:var(--ink);font-weight:600;}
-  .prayer-loc-btn{background:transparent;border:1px solid var(--gold-soft);color:var(--gold);padding:6px 12px;border-radius:12px;cursor:pointer;font-family:inherit;font-size:12px;}
-  .prayer-card{background:var(--bg-elevated);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;}
-  .prayer-row{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);}
-  .prayer-row:last-child{border-bottom:none;}
-  .prayer-row.next{background:rgba(201,163,86,0.12);border-right:3px solid var(--gold);}
-  .prayer-name{font-size:16px;color:var(--ink);font-weight:500;}
-  .prayer-time{font-size:18px;color:var(--gold);font-weight:700;font-variant-numeric:tabular-nums;}
-  .prayer-row.next .prayer-name{color:var(--gold);}
-  .prayer-date{text-align:center;color:var(--ink-dim);font-size:13px;margin-bottom:16px;}
-  .prayer-countdown{text-align:center;background:var(--bg-elevated);border:1px solid var(--gold-soft);border-radius:14px;padding:14px;margin-bottom:16px;}
-  .prayer-countdown-label{font-size:12px;color:var(--ink-dim);margin-bottom:4px;}
-  .prayer-countdown-time{font-size:24px;color:var(--gold);font-weight:700;}
+  /* أوقات الصلاة محذوفة */
 
   /* ===== الدعم الفني ===== */
   .support-btn{display:flex;align-items:center;gap:10px;background:var(--bg-elevated);border:1px solid var(--line);border-radius:14px;padding:14px 18px;cursor:pointer;text-decoration:none;color:var(--ink);transition:all .2s;margin-top:12px;width:100%;}
@@ -970,11 +954,7 @@ function renderHome(){
           <div class="card-title">التسبيح</div>
           <div class="card-sub">عداد الذكر</div>
         </div>
-        <div class="home-card" onclick="renderPrayerTimes()">
-          <div class="card-icon">🕌</div>
-          <div class="card-title">أوقات الصلاة</div>
-          <div class="card-sub">تلقائي بدون نت</div>
-        </div>
+
       </div>
       <button class="home-settings-btn" onclick="openSettings()">${SVG.gear} الإعدادات</button>
       <a href="https://t.me/T3LM_DR" target="_blank" class="support-btn" style="max-width:300px;margin-top:12px;text-decoration:none;">
@@ -1443,10 +1423,51 @@ function setTasbihType(idx){
   renderTasbih();
 }
 
+// صوت حصوات التسبيح باستخدام Web Audio API
+let tasbihAudioCtx = null;
+
+function playTasbihSound(){
+  try {
+    if(!tasbihAudioCtx) tasbihAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = tasbihAudioCtx;
+
+    // صوت أول (النقرة الأولى)
+    function playClick(time, freq, duration){
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      filter.type = 'bandpass';
+      filter.frequency.value = freq;
+      filter.Q.value = 8;
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.7, time + duration);
+
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.4, time + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+      osc.start(time);
+      osc.stop(time + duration);
+    }
+
+    const now = ctx.currentTime;
+    playClick(now, 1200, 0.08);        // نقرة أولى
+    playClick(now + 0.06, 900, 0.1);   // نقرة ثانية (صدى)
+  } catch(e){}
+}
+
 function incrementTasbih(){
   tasbihCount++;
+  playTasbihSound();
+
   const t = TASBIH_TYPES[tasbihTypeIdx];
-  // تحديث الرقم فقط بدون إعادة رسم كاملة
   const numEl = document.querySelector('.tasbih-number');
   const targetEl = document.querySelector('.tasbih-target');
   if(numEl) numEl.textContent = tasbihCount;
