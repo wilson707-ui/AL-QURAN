@@ -1385,8 +1385,8 @@ const TASBIH_TYPES = [
   {text:'لَا إِلَهَ إِلَّا اللهُ', target:100},
   {text:'أَسْتَغْفِرُ اللهَ', target:100},
 ];
-let tasbihCount = 0;
-let tasbihTypeIdx = 0;
+let tasbihCount = parseInt(localStorage.getItem('tasbih_count')||'0',10);
+let tasbihTypeIdx = parseInt(localStorage.getItem('tasbih_type')||'0',10);
 
 function renderTasbih(){
   pushScreen('tasbih');
@@ -1420,51 +1420,66 @@ function renderTasbih(){
 function setTasbihType(idx){
   tasbihTypeIdx = idx;
   tasbihCount = 0;
+  localStorage.setItem('tasbih_type', idx);
+  localStorage.setItem('tasbih_count', 0);
   renderTasbih();
 }
 
-// صوت حصوات التسبيح باستخدام Web Audio API
+// صوت حصوات التسبيح
 let tasbihAudioCtx = null;
 
 function playTasbihSound(){
   try {
     if(!tasbihAudioCtx) tasbihAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = tasbihAudioCtx;
+    const now = ctx.currentTime;
 
-    // صوت أول (النقرة الأولى)
-    function playClick(time, freq, duration){
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+    function playBead(startTime){
+      // ضربة حصاة: noise قصير مع تخفيت سريع
+      const bufSize = ctx.sampleRate * 0.06;
+      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for(let i=0; i<bufSize; i++){
+        // noise مع تشكيل يشبه ارتطام صلب
+        data[i] = (Math.random()*2-1) * Math.pow(1 - i/bufSize, 4);
+      }
+
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+
+      // فلتر يعطي طابع الحصاة (صوت متوسط-عالي)
       const filter = ctx.createBiquadFilter();
-
       filter.type = 'bandpass';
-      filter.frequency.value = freq;
-      filter.Q.value = 8;
+      filter.frequency.value = 2800;
+      filter.Q.value = 2;
 
-      osc.connect(filter);
-      filter.connect(gain);
+      // فلتر ثاني للعمق
+      const filter2 = ctx.createBiquadFilter();
+      filter2.type = 'peaking';
+      filter2.frequency.value = 600;
+      filter2.gain.value = 8;
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.7, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.055);
+
+      src.connect(filter);
+      filter.connect(filter2);
+      filter2.connect(gain);
       gain.connect(ctx.destination);
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, time);
-      osc.frequency.exponentialRampToValueAtTime(freq * 0.7, time + duration);
-
-      gain.gain.setValueAtTime(0, time);
-      gain.gain.linearRampToValueAtTime(0.4, time + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
-      osc.start(time);
-      osc.stop(time + duration);
+      src.start(startTime);
     }
 
-    const now = ctx.currentTime;
-    playClick(now, 1200, 0.08);        // نقرة أولى
-    playClick(now + 0.06, 900, 0.1);   // نقرة ثانية (صدى)
+    playBead(now);           // الحصاة الأولى
+    playBead(now + 0.055);   // الحصاة الثانية تصطدم بها
   } catch(e){}
 }
 
 function incrementTasbih(){
   tasbihCount++;
+  // حفظ العداد فوراً
+  localStorage.setItem('tasbih_count', tasbihCount);
+  localStorage.setItem('tasbih_type', tasbihTypeIdx);
   playTasbihSound();
 
   const t = TASBIH_TYPES[tasbihTypeIdx];
@@ -1483,6 +1498,7 @@ function incrementTasbih(){
 
 function resetTasbih(){
   tasbihCount = 0;
+  localStorage.setItem('tasbih_count', 0);
   renderTasbih();
 }
 
