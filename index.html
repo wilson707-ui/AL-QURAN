@@ -313,6 +313,25 @@
   }
   .makkiyah { background: rgba(201,163,86,0.15); color: var(--gold); }
   .madaniyah { background: rgba(93,191,110,0.15); color: #5dbf6e; }
+
+  .settings-action-btn {
+    display:flex; align-items:center; gap:12px;
+    background:var(--bg); border:1px solid var(--line);
+    border-radius:12px; padding:14px 16px;
+    cursor:pointer; width:100%; font-family:inherit;
+    color:var(--ink); font-size:14px; transition:all .2s;
+    margin-bottom:8px; text-align:right;
+  }
+  .settings-action-btn:hover{border-color:var(--gold-soft);}
+  .settings-action-btn .btn-icon{font-size:20px;}
+  .settings-action-btn .btn-label{flex:1;}
+  .settings-action-btn .btn-badge{font-size:12px;color:var(--ink-dim);}
+  .night-toggle{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:8px;}
+  .night-toggle-label{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink);}
+  .toggle-switch{width:44px;height:24px;background:var(--line);border-radius:12px;position:relative;cursor:pointer;transition:background .2s;}
+  .toggle-switch.on{background:var(--gold);}
+  .toggle-switch::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left .2s;}
+  .toggle-switch.on::after{left:23px;}
 </style>
 </head>
 <body>
@@ -369,8 +388,6 @@ function renderShell(){
       <button class="icon-btn" id="prevBtn">${SVG.fwd}</button>
       <div style="text-align:center"><h1 id="surahTitle">القرآن الكريم</h1><div class="surah-info" id="surahInfo">جاري التحميل...</div></div>
       <button class="bookmark-btn" id="bookmarkBtn" title="علامة الحفظ">${SVG.bookmark_empty}</button>
-      <button class="icon-btn night-btn" id="nightBtn" title="وضع الليل">${SVG.moon}</button>
-      <button class="icon-btn" id="surahListBtn" title="قائمة السور">${SVG.list}</button>
       <button class="icon-btn" id="searchBtn" title="بحث">${SVG.search}</button>
       <button class="icon-btn" id="homeBtn" title="الرئيسية">${SVG.home}</button>
       <button class="icon-btn" id="settingsBtn" title="الإعدادات">${SVG.gear}</button>
@@ -657,6 +674,19 @@ function openSettings(){
       </div>
 
       <div class="settings-section">
+        <span class="settings-section-label">العرض والتنقل</span>
+        <div class="night-toggle" onclick="toggleNightMode();updateSettingsNightToggle()">
+          <div class="night-toggle-label"><span>🌙</span> وضع القراءة الليلي</div>
+          <div class="toggle-switch ${isNightMode?'on':''}" id="nightToggle"></div>
+        </div>
+        <button class="settings-action-btn" onclick="closeSettings();renderSurahList()">
+          <span class="btn-icon">📋</span>
+          <span class="btn-label">فهرس السور</span>
+          <span class="btn-badge">114 سورة ←</span>
+        </button>
+      </div>
+
+      <div class="settings-section">
         <span class="settings-section-label">القارئ الحالي</span>
         <select class="reciter-select" id="settingsReciterSel" style="width:100%;border-radius:12px;padding:12px;">
           ${RECITERS.map(r=>`<option value="${r.id}"${r.id===currentReciterId?' selected':''}>${r.name}</option>`).join('')}
@@ -715,6 +745,14 @@ function openSettings(){
 function closeSettings(){
   const ov = document.getElementById('settingsOverlay');
   if(ov) ov.remove();
+}
+
+function updateSettingsNightToggle(){
+  const toggle = document.getElementById('nightToggle');
+  if(toggle){
+    if(isNightMode) toggle.classList.add('on');
+    else toggle.classList.remove('on');
+  }
 }
 
 // تحميل صوت قارئ كامل للأوفلاين
