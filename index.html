@@ -349,15 +349,16 @@ const TOTAL_PAGES=604;
    ===================================================== */
 // ayahByAyah: true  = يشغّل آية بآية من everyayah.com
 // ayahByAyah: false = يشغّل السورة كاملة من mp3quran.net (إسلام صبحي)
+// معرّفات cdn.islamic.network (أسرع بكثير - CDN عالمي)
 const RECITERS=[
-  {id:'Alafasy_128kbps',              name:'مشاري العفاسي',      ayahByAyah:true},
-  {id:'Abdul_Basit_Murattal_192kbps', name:'عبدالباسط عبدالصمد', ayahByAyah:true},
-  {id:'Hudhaify_128kbps',             name:'علي الحذيفي',         ayahByAyah:true},
-  {id:'Mohammad_al_Tablaway_128kbps', name:'محمد الطبلاوي',       ayahByAyah:true},
-  {id:'islam',                        name:'إسلام صبحي ★',        ayahByAyah:false,
+  {id:'ar.alafasy',        name:'مشاري العفاسي',      ayahByAyah:true},
+  {id:'ar.abdulbasitmurattal', name:'عبدالباسط عبدالصمد', ayahByAyah:true},
+  {id:'ar.hudhaify',       name:'علي الحذيفي',         ayahByAyah:true},
+  {id:'ar.tablawy',        name:'محمد الطبلاوي',       ayahByAyah:true},
+  {id:'islam',             name:'إسلام صبحي ★',        ayahByAyah:false,
    surahUrl: s => `https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3,'0')}.mp3`},
 ];
-const AUDIO_BASE='https://everyayah.com/data';
+const AUDIO_BASE='https://cdn.islamic.network/quran/audio/128';
 let currentReciterId=localStorage.getItem('quran_reciter')||RECITERS[0].id;
 
 let audioEl=null,isPlayingPage=false,pageQueue=[],pageQueueIdx=0,activeVerseKey=null;
@@ -378,7 +379,19 @@ const SVG={
 };
 
 function ayahAudioUrl(s,a){
-  return `${AUDIO_BASE}/${currentReciterId}/${String(s).padStart(3,'0')}${String(a).padStart(3,'0')}.mp3`;
+  // cdn.islamic.network: /quran/audio/128/{reciter}/{surah}{ayah}.mp3
+  // الرابط: surah بدون أصفار + ayah بدون أصفار
+  return `${AUDIO_BASE}/${currentReciterId}/${s}${a}.mp3`;
+}
+
+// preload للآية الجاية عشان تبدأ بدون تأخير
+let preloadAudio = null;
+function preloadNextAyah(s, a){
+  const reciter = RECITERS.find(r=>r.id===currentReciterId);
+  if(!reciter || !reciter.ayahByAyah) return;
+  preloadAudio = new Audio();
+  preloadAudio.preload = 'auto';
+  preloadAudio.src = ayahAudioUrl(s, a);
 }
 
 function renderShell(){
@@ -445,20 +458,29 @@ function playVerseOnly(vk){
 function playVerse(vk){
   const [s,a]=vk.split(':').map(Number);
   activeVerseKey=vk; highlightActive();
-  setStatus('جاري التحميل...');
+  setStatus('');
 
   const reciter=RECITERS.find(r=>r.id===currentReciterId);
   if(reciter && !reciter.ayahByAyah){
-    // إسلام صبحي: شغّل السورة كاملة من أوّلها
     audioEl.src=reciter.surahUrl(s);
   } else {
-    // بقية القراء: آية بآية
-    audioEl.src=ayahAudioUrl(s,a);
+    // لو الآية محملة مسبقاً استخدمها مباشرة
+    if(preloadAudio && preloadAudio.src === ayahAudioUrl(s,a) && preloadAudio.readyState >= 2){
+      audioEl.src = preloadAudio.src;
+    } else {
+      audioEl.src = ayahAudioUrl(s,a);
+    }
+    preloadAudio = null;
   }
 
   audioEl.load();
   audioEl.play()
-    .then(()=>setStatus(''))
+    .then(()=>{
+      setStatus('');
+      // preload الآية الجاية
+      const nextA = a+1;
+      preloadNextAyah(s, nextA);
+    })
     .catch(err=>{console.warn(err);setStatus('تعذّر التشغيل');clearHighlight();});
 }
 
