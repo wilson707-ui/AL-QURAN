@@ -332,6 +332,17 @@
   .toggle-switch.on{background:var(--gold);}
   .toggle-switch::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left .2s;}
   .toggle-switch.on::after{left:23px;}
+
+  /* ===== نافذة الدعم ===== */
+  .support-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
+  .support-panel{background:var(--bg-elevated);border-radius:20px 20px 0 0;width:100%;max-width:720px;padding:24px 20px 36px;}
+  .support-panel h3{color:var(--gold);font-size:16px;font-weight:700;margin:0 0 6px;text-align:center;}
+  .support-panel p{color:var(--ink-dim);font-size:13px;text-align:center;margin:0 0 20px;}
+  .support-input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:12px 14px;border-radius:12px;font-family:inherit;font-size:14px;direction:rtl;resize:none;min-height:100px;margin-bottom:12px;}
+  .support-input:focus{outline:none;border-color:var(--gold-soft);}
+  .support-send-btn{width:100%;background:var(--gold);color:#1a1208;border:none;padding:14px;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+  .support-send-btn:disabled{opacity:.5;cursor:default;}
+  .support-close{width:100%;background:transparent;border:1px solid var(--line);color:var(--ink-dim);padding:12px;border-radius:12px;cursor:pointer;font-family:inherit;font-size:14px;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -1017,13 +1028,13 @@ function renderHome(){
 
       </div>
       <button class="home-settings-btn" onclick="openSettings()">${SVG.gear} الإعدادات</button>
-      <a href="https://t.me/T3LM_DR" target="_blank" class="support-btn" style="max-width:300px;margin-top:12px;text-decoration:none;">
+      <button class="support-btn" style="max-width:300px;margin-top:12px;" onclick="openSupportBot()">
         <span class="support-btn-icon">✈️</span>
         <div>
           <div class="support-btn-text">التواصل والدعم الفني</div>
-          <div class="support-btn-sub">@T3LM_DR على تيليجرام</div>
+          <div class="support-btn-sub">راسلنا عبر تيليجرام</div>
         </div>
-      </a>
+      </button>
     </div>`;
 }
 
@@ -2293,6 +2304,86 @@ function renderSurahList(){
   document.getElementById('surahListInput').addEventListener('input', e=>{
     document.getElementById('surahListContainer').innerHTML = buildList(e.target.value.trim());
   });
+}
+
+
+/* =====================================================
+   بوت تيليجرام للدعم الفني
+   ===================================================== */
+const BOT_TOKEN = '8524217469:AAE8Z9lo0VogNGZS5R-M3rZFyx5d6vlceos';
+
+function openSupportBot(){
+  const overlay = document.createElement('div');
+  overlay.className = 'support-overlay';
+  overlay.id = 'supportOverlay';
+  overlay.innerHTML = `
+    <div class="support-panel">
+      <h3>✈️ التواصل والدعم الفني</h3>
+      <p>اكتب رسالتك وسنرد عليك في أقرب وقت</p>
+      <textarea class="support-input" id="supportMsg" placeholder="اكتب رسالتك هنا..."></textarea>
+      <button class="support-send-btn" id="supportSendBtn" onclick="sendSupportMsg()">إرسال</button>
+      <button class="support-close" onclick="closeSupportBot()">إلغاء</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) closeSupportBot(); });
+}
+
+function closeSupportBot(){
+  const ov = document.getElementById('supportOverlay');
+  if(ov) ov.remove();
+}
+
+async function sendSupportMsg(){
+  const msg = document.getElementById('supportMsg')?.value?.trim();
+  if(!msg) return;
+
+  const btn = document.getElementById('supportSendBtn');
+  btn.disabled = true;
+  btn.textContent = 'جاري الإرسال...';
+
+  // نحصل على chat_id من getUpdates (أول مستخدم راسل البوت)
+  try{
+    // نرسل للبوت عن طريق webhook - نحتاج chat_id
+    // الحل: نخزن chat_id بعد أول رسالة
+    let chatId = localStorage.getItem('support_chat_id');
+
+    if(!chatId){
+      // نجيب آخر update من البوت
+      const updRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates`);
+      const updData = await updRes.json();
+      if(updData.result && updData.result.length > 0){
+        chatId = updData.result[updData.result.length-1].message?.chat?.id;
+        if(chatId) localStorage.setItem('support_chat_id', chatId);
+      }
+    }
+
+    if(!chatId){
+      btn.textContent = 'أرسل /start للبوت أولاً';
+      btn.disabled = false;
+      return;
+    }
+
+    const text = `📩 رسالة دعم فني:
+
+${msg}`;
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({chat_id: chatId, text})
+    });
+
+    const data = await res.json();
+    if(data.ok){
+      btn.textContent = '✓ تم الإرسال بنجاح!';
+      setTimeout(()=>closeSupportBot(), 1500);
+    } else {
+      btn.textContent = 'فشل الإرسال، حاول مرة أخرى';
+      btn.disabled = false;
+    }
+  }catch(e){
+    btn.textContent = 'تحقق من اتصال الإنترنت';
+    btn.disabled = false;
+  }
 }
 
 </script>
