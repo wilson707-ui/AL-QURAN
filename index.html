@@ -435,10 +435,7 @@ function renderShell(){
   document.getElementById('pageJump').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=parseInt(e.target.value);if(v>=1&&v<=TOTAL_PAGES)goToPage(v);}});
   document.getElementById('bookmarkBtn').onclick = toggleBookmark;
   document.getElementById('homeBtn').onclick = renderHome;
-  document.getElementById('nightBtn').onclick = toggleNightMode;
-  document.getElementById('surahListBtn').onclick = renderSurahList;
   document.getElementById('searchBtn').onclick = renderSearch;
-  updateNightBtn();
   updateBookmarkBtn();
   updateGotoBookmarkBtn();
   document.getElementById('reciterSel').addEventListener('change',e=>{currentReciterId=e.target.value;localStorage.setItem('quran_reciter',currentReciterId);stopAudio();});
