@@ -329,12 +329,13 @@ function globalAyahNumber(s,a){
 }
 
 const RECITERS=[
-  {id:'ar.alafasy',        name:'مشاري العفاسي',      ayahByAyah:true},
-  {id:'ar.abdulbasitmurattal', name:'عبدالباسط عبدالصمد', ayahByAyah:true},
-  {id:'ar.hudhaify',       name:'علي الحذيفي',         ayahByAyah:true},
-  {id:'ar.tablawy',        name:'محمد الطبلاوي',       ayahByAyah:true},
-  {id:'islam',             name:'إسلام صبحي ★',        ayahByAyah:false,
-   surahUrl: s => `https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3,'0')}.mp3`},
+  {id:'ar.alafasy',  name:'مشاري العفاسي',  ayahByAyah:true},
+  {id:'ar.hudhaify', name:'علي الحذيفي',    ayahByAyah:true},
+  {id:'islam_sobhi', name:'إسلام صبحي ★',   ayahByAyah:true,
+   // آية بآية من everyayah.com
+   ayahUrl:(s,a)=>`https://everyayah.com/data/Islam_Sobhi_192kbps/${String(s).padStart(3,'0')}${String(a).padStart(3,'0')}.mp3`,
+   // سورة كاملة من mp3quran.net
+   surahUrl:s=>`https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3,'0')}.mp3`},
 ];
 const AUDIO_BASE='https://cdn.islamic.network/quran/audio/128';
 let currentReciterId=localStorage.getItem('quran_reciter')||RECITERS[0].id;
@@ -357,8 +358,10 @@ const SVG={
 };
 
 function ayahAudioUrl(s,a){
-  // === الإصلاح: نحسب الرقم العام للآية (1 إلى 6236) بدل لزق رقم السورة مع الآية ===
-  // cdn.islamic.network يرقّم الآيات تسلسلياً على مستوى القرآن كله، مو surah+ayah منفصلين
+  const reciter=RECITERS.find(r=>r.id===currentReciterId);
+  // لو القارئ عنده رابط خاص لكل آية (مثل إسلام صبحي)
+  if(reciter && reciter.ayahUrl) return reciter.ayahUrl(s,a);
+  // باقي القراء من cdn.islamic.network برقم الآية التسلسلي
   return `${AUDIO_BASE}/${currentReciterId}/${globalAyahNumber(s,a)}.mp3`;
 }
 
