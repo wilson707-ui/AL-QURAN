@@ -331,14 +331,13 @@ function globalAyahNumber(s,a){
 const RECITERS=[
   {id:'ar.alafasy',  name:'مشاري العفاسي',  ayahByAyah:true},
   {id:'ar.hudhaify', name:'علي الحذيفي',    ayahByAyah:true},
-  {id:'islam_sobhi', name:'إسلام صبحي ★',   ayahByAyah:true,
-   // آية بآية من everyayah.com
-   ayahUrl:(s,a)=>`https://everyayah.com/data/Islam_Sobhi_192kbps/${String(s).padStart(3,'0')}${String(a).padStart(3,'0')}.mp3`,
-   // سورة كاملة من mp3quran.net
+  {id:'islam_sobhi', name:'إسلام صبحي ★',   ayahByAyah:false,
    surahUrl:s=>`https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3,'0')}.mp3`},
 ];
 const AUDIO_BASE='https://cdn.islamic.network/quran/audio/128';
 let currentReciterId=localStorage.getItem('quran_reciter')||RECITERS[0].id;
+// إصلاح المعرف القديم لإسلام صبحي
+if(currentReciterId==='islam') { currentReciterId='islam_sobhi'; localStorage.setItem('quran_reciter','islam_sobhi'); }
 
 let audioEl=null,isPlayingPage=false,pageQueue=[],pageQueueIdx=0,activeVerseKey=null;
 const app=document.getElementById('app');
@@ -358,10 +357,8 @@ const SVG={
 };
 
 function ayahAudioUrl(s,a){
-  const reciter=RECITERS.find(r=>r.id===currentReciterId);
-  // لو القارئ عنده رابط خاص لكل آية (مثل إسلام صبحي)
-  if(reciter && reciter.ayahUrl) return reciter.ayahUrl(s,a);
-  // باقي القراء من cdn.islamic.network برقم الآية التسلسلي
+  // === الإصلاح: نحسب الرقم العام للآية (1 إلى 6236) بدل لزق رقم السورة مع الآية ===
+  // cdn.islamic.network يرقّم الآيات تسلسلياً على مستوى القرآن كله، مو surah+ayah منفصلين
   return `${AUDIO_BASE}/${currentReciterId}/${globalAyahNumber(s,a)}.mp3`;
 }
 
@@ -421,6 +418,22 @@ function initAudio(){
 
 function togglePlayPage(){
   if(isPlayingPage){stopAudio();return;}
+  const reciter=RECITERS.find(r=>r.id===currentReciterId);
+
+  // إسلام صبحي: يشغّل السورة الكاملة للصفحة الحالية
+  if(reciter && !reciter.ayahByAyah){
+    const wrap=document.getElementById('pageWrap');
+    const keys=JSON.parse(wrap.dataset.verseKeys||'[]');
+    if(!keys.length)return;
+    const firstSurah=parseInt(keys[0].split(':')[0]);
+    isPlayingPage=true; updatePageBtn();
+    setStatus('يشغّل سورة ' + (pageCache[currentPage]?.surahs?.[0]?.name_arabic||firstSurah));
+    audioEl.src=reciter.surahUrl(firstSurah);
+    audioEl.load();
+    audioEl.play().catch(err=>{console.warn(err);setStatus('تعذّر التشغيل');stopAudio();});
+    return;
+  }
+
   const wrap=document.getElementById('pageWrap');
   const keys=JSON.parse(wrap.dataset.verseKeys||'[]');
   if(!keys.length)return;
@@ -461,7 +474,7 @@ function playVerse(vk){
 
 function onAudioEnded(){
   const reciter=RECITERS.find(r=>r.id===currentReciterId);
-  if(reciter && !reciter.ayahByAyah){ stopAudio(); return; }
+  if(reciter && !reciter.ayahByAyah){ stopAudio(); setStatus('انتهت السورة'); return; }
   if(isPlayingPage&&pageQueueIdx<pageQueue.length-1){pageQueueIdx++;playVerse(pageQueue[pageQueueIdx]);}
   else stopAudio();
 }
