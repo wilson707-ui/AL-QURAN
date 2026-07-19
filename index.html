@@ -46,6 +46,22 @@
   .spinner{width:28px;height:28px;border:2px solid var(--line);border-top-color:var(--gold);border-radius:50%;margin:0 auto 14px;animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .bottom-nav{display:flex;align-items:center;justify-content:center;gap:18px;padding:14px 18px 22px;}
+
+  /* ===== الزر العائم ===== */
+  .fab{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;color:#0f1410;font-size:22px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);z-index:100;display:flex;align-items:center;justify-content:center;transition:transform .2s;}
+  .fab:active{transform:translateX(-50%) scale(.92);}
+
+  /* ===== إخفاء الأشرطة ===== */
+  .ui-hidden .topbar{transform:translateY(-100%);transition:transform .3s;}
+  .ui-hidden .audio-bar{transform:translateY(-100%);transition:transform .3s;margin-top:-100px;}
+  .ui-hidden .bottom-nav{transform:translateY(100%);transition:transform .3s;}
+  .topbar{transition:transform .3s;}
+  .audio-bar{transition:transform .3s,margin-top .3s;}
+  .bottom-nav{transition:transform .3s;}
+
+  /* ===== الجزء والحزب ===== */
+  .juz-badge{text-align:center;font-size:12px;color:var(--ink-dim);padding:6px 0 2px;font-family:inherit;}
+  .juz-badge span{background:var(--bg-elevated);border:1px solid var(--line);border-radius:20px;padding:3px 12px;}
   .nav-btn{background:var(--bg-elevated);border:1px solid var(--line);color:var(--ink);padding:10px 20px;border-radius:24px;cursor:pointer;font-family:inherit;font-size:14px;display:flex;align-items:center;gap:6px;transition:border-color .2s;}
   .nav-btn:hover{border-color:var(--gold-soft);} .nav-btn:disabled{opacity:.3;cursor:default;} .nav-btn svg{width:16px;height:16px;}
   .page-jump{background:var(--bg-elevated);border:1px solid var(--line);color:var(--ink);padding:10px 14px;border-radius:24px;font-size:13px;width:70px;text-align:center;font-family:inherit;}
@@ -329,15 +345,15 @@ function globalAyahNumber(s,a){
 }
 
 const RECITERS=[
-  {id:'ar.alafasy',  name:'مشاري العفاسي',  ayahByAyah:true},
-  {id:'ar.hudhaify', name:'علي الحذيفي',    ayahByAyah:true},
-  {id:'islam_sobhi', name:'إسلام صبحي ★',   ayahByAyah:false,
-   surahUrl:s=>`https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3,'0')}.mp3`},
+  {id:'ar.alafasy',        name:'مشاري العفاسي',      ayahByAyah:true},
+  {id:'ar.abdulbasitmurattal', name:'عبدالباسط عبدالصمد', ayahByAyah:true},
+  {id:'ar.hudhaify',       name:'علي الحذيفي',         ayahByAyah:true},
+  {id:'ar.tablawy',        name:'محمد الطبلاوي',       ayahByAyah:true},
+  {id:'islam',             name:'إسلام صبحي ★',        ayahByAyah:false,
+   surahUrl: s => `https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3,'0')}.mp3`},
 ];
 const AUDIO_BASE='https://cdn.islamic.network/quran/audio/128';
 let currentReciterId=localStorage.getItem('quran_reciter')||RECITERS[0].id;
-// إصلاح المعرف القديم لإسلام صبحي
-if(currentReciterId==='islam') { currentReciterId='islam_sobhi'; localStorage.setItem('quran_reciter','islam_sobhi'); }
 
 let audioEl=null,isPlayingPage=false,pageQueue=[],pageQueueIdx=0,activeVerseKey=null;
 const app=document.getElementById('app');
@@ -393,7 +409,8 @@ function renderShell(){
       <button class="nav-btn" id="prevBtn2">${SVG.fwd}<span>السابقة</span></button>
       <input type="number" class="page-jump" id="pageJump" min="1" max="${TOTAL_PAGES}" value="1">
       <button class="nav-btn" id="nextBtn2"><span>التالية</span>${SVG.back}</button>
-    </div>`;
+    </div>
+    <button class="fab" id="fabBtn" title="إظهار/إخفاء الأزرار">☰</button>`;
   document.getElementById('prevBtn').onclick=()=>goToPage(currentPage-1);
   document.getElementById('settingsBtn').onclick=openSettings;
   document.getElementById('prevBtn2').onclick=()=>goToPage(currentPage-1);
@@ -406,6 +423,7 @@ function renderShell(){
   updateGotoBookmarkBtn();
   document.getElementById('reciterSel').addEventListener('change',e=>{currentReciterId=e.target.value;localStorage.setItem('quran_reciter',currentReciterId);stopAudio();});
   document.getElementById('playPageBtn').onclick=togglePlayPage;
+  document.getElementById('fabBtn').onclick=toggleUI;
   initAudio();
 }
 
@@ -418,22 +436,6 @@ function initAudio(){
 
 function togglePlayPage(){
   if(isPlayingPage){stopAudio();return;}
-  const reciter=RECITERS.find(r=>r.id===currentReciterId);
-
-  // إسلام صبحي: يشغّل السورة الكاملة للصفحة الحالية
-  if(reciter && !reciter.ayahByAyah){
-    const wrap=document.getElementById('pageWrap');
-    const keys=JSON.parse(wrap.dataset.verseKeys||'[]');
-    if(!keys.length)return;
-    const firstSurah=parseInt(keys[0].split(':')[0]);
-    isPlayingPage=true; updatePageBtn();
-    setStatus('يشغّل سورة ' + (pageCache[currentPage]?.surahs?.[0]?.name_arabic||firstSurah));
-    audioEl.src=reciter.surahUrl(firstSurah);
-    audioEl.load();
-    audioEl.play().catch(err=>{console.warn(err);setStatus('تعذّر التشغيل');stopAudio();});
-    return;
-  }
-
   const wrap=document.getElementById('pageWrap');
   const keys=JSON.parse(wrap.dataset.verseKeys||'[]');
   if(!keys.length)return;
@@ -474,7 +476,7 @@ function playVerse(vk){
 
 function onAudioEnded(){
   const reciter=RECITERS.find(r=>r.id===currentReciterId);
-  if(reciter && !reciter.ayahByAyah){ stopAudio(); setStatus('انتهت السورة'); return; }
+  if(reciter && !reciter.ayahByAyah){ stopAudio(); return; }
   if(isPlayingPage&&pageQueueIdx<pageQueue.length-1){pageQueueIdx++;playVerse(pageQueue[pageQueueIdx]);}
   else stopAudio();
 }
@@ -571,7 +573,7 @@ async function goToPage(pageNum){
     await Promise.all([...fontsNeeded].map(ensureFontLoaded));
     renderPage(data);
     if(data.surahs&&data.surahs.length>0)document.getElementById('surahTitle').textContent=data.surahs[0].name_arabic;
-    document.getElementById('surahInfo').textContent=`صفحة ${pageNum}`;
+    document.getElementById('surahInfo').textContent=`${getJuzName(pageNum)} · صفحة ${pageNum}`;
     updateBookmarkBtn();
     window.scrollTo(0,0);
   }catch(err){
@@ -937,6 +939,30 @@ function showToast(msg){
   toast.textContent = msg;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ===== بيانات الأجزاء =====
+const JUZ_PAGES=[1,22,42,62,82,102,121,142,162,182,201,221,241,261,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582,604];
+const JUZ_NAMES=['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر','الحادي عشر','الثاني عشر','الثالث عشر','الرابع عشر','الخامس عشر','السادس عشر','السابع عشر','الثامن عشر','التاسع عشر','العشرون','الحادي والعشرون','الثاني والعشرون','الثالث والعشرون','الرابع والعشرون','الخامس والعشرون','السادس والعشرون','السابع والعشرون','الثامن والعشرون','التاسع والعشرون','الثلاثون'];
+
+function getJuzNum(page){
+  for(let i=JUZ_PAGES.length-2;i>=0;i--){
+    if(page>=JUZ_PAGES[i]) return i+1;
+  }
+  return 1;
+}
+
+function getJuzName(page){
+  const n=getJuzNum(page);
+  return `الجزء ${JUZ_NAMES[n-1]}`;
+}
+
+let uiVisible=true;
+function toggleUI(){
+  uiVisible=!uiVisible;
+  document.getElementById('app').classList.toggle('ui-hidden',!uiVisible);
+  const fab=document.getElementById('fabBtn');
+  if(fab) fab.textContent=uiVisible?'☰':'✕';
 }
 
 function renderHome(){
