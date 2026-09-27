@@ -1975,56 +1975,72 @@ function removeTashkeel(text){
 }
 
 let ayahsData = null;
-let ayahsLoading = false;
+let ayahsLoadPromise = null;
+let ayahsProgressListeners = [];
 
-async function loadAyahsData(onProgress){
-  if(ayahsData) return ayahsData;
-  if(ayahsLoading) return null;
-  ayahsLoading = true;
+function loadAyahsData(onProgress){
+  if(ayahsData) return Promise.resolve(ayahsData);
+  if(onProgress) ayahsProgressListeners.push(onProgress);
+  if(ayahsLoadPromise) return ayahsLoadPromise; // فيه تحميل شغال بالفعل — ننضم له بدل ما نرفضه
 
-  try{
-    const saved = localStorage.getItem('ayahs_data_v1');
-    if(saved){
-      ayahsData = JSON.parse(saved);
-      ayahsLoading = false;
-      return ayahsData;
-    }
-  }catch{}
+  ayahsLoadPromise = (async () => {
+    try{
+      const saved = localStorage.getItem('ayahs_data_v1');
+      if(saved){
+        ayahsData = JSON.parse(saved);
+        return ayahsData;
+      }
+    }catch{}
 
-  const data = [];
-  let done = 0;
-  const total = 6236;
+    const data = [];
+    let done = 0;
+    const total = 6236;
+    const BATCH = 8; // نجيب 8 سور بالتوازي كل مرة بدل واحدة وحدة
 
-  try{
-    for(let s=1; s<=114; s++){
-      const res = await fetch(`${TAFSIR_BASE}/surah/${s}/ar.alafasy`);
-      if(!res.ok) throw new Error('fail');
-      const json = await res.json();
-      const ayahs = json.data?.ayahs || [];
-      ayahs.forEach(a => {
-        data.push({
-          surah: s,
-          surahName: json.data.englishName,
-          surahNameAr: json.data.name,
-          ayah: a.numberInSurah,
-          text: a.text,
-          textClean: removeTashkeel(a.text),
-          page: a.page,
+    try{
+      for(let start=1; start<=114; start+=BATCH){
+        const batchNums = [];
+        for(let s=start; s<Math.min(start+BATCH,115); s++) batchNums.push(s);
+
+        const results = await Promise.all(batchNums.map(s =>
+          fetch(`${TAFSIR_BASE}/surah/${s}/ar.alafasy`)
+            .then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); })
+            .then(json=>({s, json}))
+        ));
+
+        results.sort((a,b)=>a.s-b.s).forEach(({s, json})=>{
+          const ayahs = json.data?.ayahs || [];
+          ayahs.forEach(a => {
+            data.push({
+              surah: s,
+              surahName: json.data.englishName,
+              surahNameAr: json.data.name,
+              ayah: a.numberInSurah,
+              text: a.text,
+              textClean: removeTashkeel(a.text),
+              page: a.page,
+            });
+          });
+          done += ayahs.length;
         });
-      });
-      done += ayahs.length;
-      if(onProgress) onProgress(Math.round(done/total*100), done, total);
-      await new Promise(r=>setTimeout(r,50));
-    }
 
-    ayahsData = data;
-    try{ localStorage.setItem('ayahs_data_v1', JSON.stringify(data)); }catch{}
-    ayahsLoading = false;
-    return data;
-  }catch(e){
-    ayahsLoading = false;
-    return null;
-  }
+        const percent = Math.round(done/total*100);
+        ayahsProgressListeners.forEach(fn => { try{ fn(percent, done, total); }catch{} });
+        await new Promise(r=>setTimeout(r,120)); // مهلة صغيرة بين المجموعات فقط، مراعاة للسيرفر
+      }
+
+      ayahsData = data;
+      try{ localStorage.setItem('ayahs_data_v1', JSON.stringify(data)); }catch{}
+      return data;
+    }catch(e){
+      return null;
+    } finally {
+      ayahsLoadPromise = null;
+      ayahsProgressListeners = [];
+    }
+  })();
+
+  return ayahsLoadPromise;
 }
 
 let searchAyahTimeout = null;
@@ -2101,7 +2117,7 @@ async function performAyahSearch(q, surahHtml){
     results.innerHTML = surahHtml + `
       <div style="text-align:center;padding:20px;">
         <div style="color:var(--ink-dim);font-size:13px;margin-bottom:12px;">بيانات الآيات غير محملة بعد</div>
-        <button class="audio-btn" onclick="downloadAyahsForSearch()">⬇ تحميل (مرة وحدة فقط ~2MB)</button>
+        <button class="audio-btn" id="dlAyahBtn" onclick="downloadAyahsForSearch()">⬇ تحميل (مرة وحدة فقط ~2MB)</button>
         <div id="dlAyahProg" style="color:var(--ink-dim);font-size:12px;margin-top:8px;"></div>
       </div>`;
     return;
@@ -2130,7 +2146,7 @@ async function performAyahSearch(q, surahHtml){
 
 async function downloadAyahsForSearch(){
   const prog = document.getElementById('dlAyahProg');
-  const btn = document.querySelector('.audio-btn');
+  const btn = document.getElementById('dlAyahBtn');
   if(btn){ btn.disabled=true; btn.textContent='جاري التحميل...'; }
 
   const data = await loadAyahsData((percent, done, total)=>{
