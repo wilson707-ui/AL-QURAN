@@ -460,9 +460,9 @@ function initSwipeNavigation(){
     const MIN_DIST=55; // أقل مسافة سحب تُعتبر تنقل صفحة (بالبكسل)
     if(Math.abs(dx)<MIN_DIST || Math.abs(dx)<Math.abs(dy)*1.3)return; // تجاهل السحب الرأسي (تمرير عادي)
     if(dx<0){
-      goToPage(currentPage+1); // سحب لليسار = الصفحة التالية
+      goToPage(currentPage-1); // سحب لليسار = رجوع للصفحة السابقة
     }else{
-      goToPage(currentPage-1); // سحب لليمين = الصفحة السابقة
+      goToPage(currentPage+1); // سحب لليمين = تقدّم للصفحة التالية
     }
   }, {passive:true});
 }
