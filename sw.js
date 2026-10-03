@@ -79,8 +79,25 @@ self.addEventListener('fetch', event => {
         return cached;
       }
     })());
+    return;
   }
-  // صفحات المصحف/الخطوط (GitHub، jsdelivr) تدار عبر رسائل التحميل بالأسفل، تُترك تمر عادي هنا.
+
+  // صفحات المصحف والخطوط (GitHub, jsdelivr): تُقرأ من الذاكرة المحفوظة أولاً، ثم الشبكة
+  const isPageOrFont = url.href.startsWith(RAW_BASE) || url.href.startsWith(FONT_CDN);
+  if (isPageOrFont) {
+    event.respondWith((async () => {
+      const cache = await caches.open(PAGES_CACHE);
+      const cached = await cache.match(req);
+      if (cached) return cached;
+      try {
+        const res = await fetch(req);
+        if (res.ok) cache.put(req, res.clone());
+        return res;
+      } catch (e) {
+        return new Response('', { status: 404 });
+      }
+    })());
+  }
 });
 
 /* ===================== تحميل الخلفية ===================== */
