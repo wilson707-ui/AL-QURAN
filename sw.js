@@ -18,7 +18,7 @@ const FONT_CDN = 'https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main/f
 const TOTAL_PAGES = 604;
 const ALL_FONT_NAMES = (() => {
   const n = ['QCF4_QBSML'];
-  for (let i = 1; i <= 46; i++) n.push(`QCF4_Hafs_${String(i).padStart(2, '0')}`);
+  for (let i = 1; i <= 47; i++) n.push(`QCF4_Hafs_${String(i).padStart(2, '0')}`);
   return n;
 })();
 const pad3 = n => String(n).padStart(3, '0');
