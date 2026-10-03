@@ -11,6 +11,7 @@
 
 const SHELL_CACHE = 'quran-shell-v1';
 const PAGES_CACHE = 'quran-pages-v1'; // نفس الاسم المستخدم داخل index.html
+const OFFLINE_CACHE = 'quran-offline-v1'; // ذاكرة الصوتيات، نفس الاسم المستخدم داخل index.html
 const SHELL_FILES = ['./', './index.html', './manifest.json'];
 
 const RAW_BASE = 'https://raw.githubusercontent.com/MohamadHajjRabee/quran-qcf4/main';
@@ -41,7 +42,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== SHELL_CACHE && k !== PAGES_CACHE).map(k => caches.delete(k)));
+    await Promise.all(keys.filter(k => k !== SHELL_CACHE && k !== PAGES_CACHE && k !== OFFLINE_CACHE).map(k => caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -97,7 +98,20 @@ self.addEventListener('fetch', event => {
         return new Response('', { status: 404 });
       }
     })());
+    return;
   }
+
+  // باقي الطلبات (الصوتيات تحديداً): تُقرأ من ذاكرة الأوفلاين أولاً إذا كانت محفوظة
+  event.respondWith((async () => {
+    const cache = await caches.open(OFFLINE_CACHE);
+    const cached = await cache.match(req);
+    if (cached) return cached;
+    try {
+      return await fetch(req);
+    } catch (e) {
+      return new Response('', { status: 404 });
+    }
+  })());
 });
 
 /* ===================== تحميل الخلفية ===================== */
