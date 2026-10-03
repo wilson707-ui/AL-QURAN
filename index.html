@@ -884,7 +884,7 @@ async function startReciterDownload(reciterId){
       for(let s=1; s<=114; s++){
         const url = reciter.surahUrl(s);
         if(!(await cache.match(url))){
-          try{ const r=await fetch(url); if(r.ok) await cache.put(url,r); }catch{}
+          try{ const r=await fetch(url, {mode:'no-cors'}); await cache.put(url,r); }catch{}
         }
         prog.textContent = `${s} / 114 سورة`;
       }
@@ -895,7 +895,7 @@ async function startReciterDownload(reciterId){
         for(let a=1; a<=ayatInSurah; a++){
           const url = ayahAudioUrl(s,a).replace(currentReciterId,reciterId);
           if(!(await cache.match(url))){
-            try{ const r=await fetch(url); if(r.ok) await cache.put(url,r); }catch{}
+            try{ const r=await fetch(url, {mode:'no-cors'}); await cache.put(url,r); }catch{}
           }
           done++;
           if(done%50===0) prog.textContent = `${done} / ${total} آية`;
