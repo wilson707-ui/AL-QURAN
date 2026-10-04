@@ -218,6 +218,9 @@ async function downloadReciterAudio(reciterId) {
   reciterDownloading[reciterId] = true;
   try {
     const cache = await caches.open(OFFLINE_CACHE);
+    const total = reciter.ayahByAyah ? TOTAL_AYAT : 114;
+    const unit = reciter.ayahByAyah ? 'ayah' : 'surah';
+    broadcast({ type: 'RECITER_DOWNLOAD_PROGRESS', reciterId, done: 0, total, unit });
 
     if (!reciter.ayahByAyah) {
       for (let s = 1; s <= 114; s++) {
@@ -237,7 +240,7 @@ async function downloadReciterAudio(reciterId) {
             try { const r = await fetch(url, { mode: 'no-cors' }); await cache.put(url, r); } catch (e) {}
           }
           done++;
-          if (done % 20 === 0 || done === TOTAL_AYAT) {
+          if (done % 3 === 0 || done === TOTAL_AYAT) {
             broadcast({ type: 'RECITER_DOWNLOAD_PROGRESS', reciterId, done, total: TOTAL_AYAT, unit: 'ayah' });
           }
         }
