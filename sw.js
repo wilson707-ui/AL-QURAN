@@ -7,6 +7,9 @@
       عن تحكم أي تطبيق ويب. لكن التحميل يعتمد على استئناف تلقائي: أي
       صفحة/خط محفوظ مسبقاً يُتخطى، فلو انقطع التحميل يكمل من حيث وقف
       بدل ما يبدأ من الصفر.
+   3) يدير أيضاً تحميل الصوتيات (تلاوات القراء) في الخلفية بنفس الطريقة،
+      بحيث لا يتوقف التحميل لو المستخدم أغلق صفحة الإعدادات أو تصفح
+      داخل التطبيق أثناء التحميل.
 */
 
 const SHELL_CACHE = 'quran-shell-v1';
@@ -25,6 +28,29 @@ const ALL_FONT_NAMES = (() => {
 const pad3 = n => String(n).padStart(3, '0');
 const fontUrl = name => `${FONT_CDN}/${name}${name === 'QCF4_QBSML' ? '' : '_W'}.woff2`;
 const pageUrl = n => `${RAW_BASE}/pages/${pad3(n)}.json`;
+
+/* ===== معلومات القرّاء والصوتيات — نفس البيانات المستخدمة داخل index.html ===== */
+const AUDIO_BASE = 'https://cdn.islamic.network/quran/audio/128';
+const RECITERS = {
+  'ar.alafasy':              { ayahByAyah: true },
+  'ar.abdulbasitmurattal':   { ayahByAyah: true },
+  'ar.hudhaify':             { ayahByAyah: true },
+  'ar.tablawy':              { ayahByAyah: true },
+  'islam': {
+    ayahByAyah: false,
+    surahUrl: s => `https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3, '0')}.mp3`
+  }
+};
+const SURAH_AYAT_COUNTS = [7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
+const TOTAL_AYAT = 6236;
+function globalAyahNumber(s, a) {
+  let n = 0;
+  for (let i = 0; i < s - 1; i++) n += SURAH_AYAT_COUNTS[i];
+  return n + a;
+}
+function ayahAudioUrl(reciterId, s, a) {
+  return `${AUDIO_BASE}/${reciterId}/${globalAyahNumber(s, a)}.mp3`;
+}
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -114,7 +140,7 @@ self.addEventListener('fetch', event => {
   })());
 });
 
-/* ===================== تحميل الخلفية ===================== */
+/* ===================== تحميل الصفحات والخطوط في الخلفية ===================== */
 let downloading = false;
 
 async function broadcast(msg) {
@@ -179,6 +205,53 @@ async function downloadAllPages() {
   }
 }
 
+/* ===================== تحميل صوت القارئ في الخلفية ===================== */
+let reciterDownloading = {}; // reciterId -> true/false
+
+async function downloadReciterAudio(reciterId) {
+  if (reciterDownloading[reciterId]) return;
+  const reciter = RECITERS[reciterId];
+  if (!reciter) {
+    broadcast({ type: 'RECITER_DOWNLOAD_ERROR', reciterId });
+    return;
+  }
+  reciterDownloading[reciterId] = true;
+  try {
+    const cache = await caches.open(OFFLINE_CACHE);
+
+    if (!reciter.ayahByAyah) {
+      for (let s = 1; s <= 114; s++) {
+        const url = reciter.surahUrl(s);
+        if (!(await cache.match(url))) {
+          try { const r = await fetch(url, { mode: 'no-cors' }); await cache.put(url, r); } catch (e) {}
+        }
+        broadcast({ type: 'RECITER_DOWNLOAD_PROGRESS', reciterId, done: s, total: 114, unit: 'surah' });
+      }
+    } else {
+      let done = 0;
+      for (let s = 1; s <= 114; s++) {
+        const ayatInSurah = SURAH_AYAT_COUNTS[s - 1];
+        for (let a = 1; a <= ayatInSurah; a++) {
+          const url = ayahAudioUrl(reciterId, s, a);
+          if (!(await cache.match(url))) {
+            try { const r = await fetch(url, { mode: 'no-cors' }); await cache.put(url, r); } catch (e) {}
+          }
+          done++;
+          if (done % 20 === 0 || done === TOTAL_AYAT) {
+            broadcast({ type: 'RECITER_DOWNLOAD_PROGRESS', reciterId, done, total: TOTAL_AYAT, unit: 'ayah' });
+          }
+        }
+      }
+    }
+
+    reciterDownloading[reciterId] = false;
+    broadcast({ type: 'RECITER_DOWNLOAD_DONE', reciterId });
+  } catch (e) {
+    reciterDownloading[reciterId] = false;
+    broadcast({ type: 'RECITER_DOWNLOAD_ERROR', reciterId });
+  }
+}
+
 self.addEventListener('message', event => {
   const data = event.data || {};
   if (data.type === 'START_PAGES_DOWNLOAD') {
@@ -189,6 +262,8 @@ self.addEventListener('message', event => {
       const src = event.source;
       if (src) src.postMessage({ type: 'PAGES_STATUS', ...status });
     })());
+  } else if (data.type === 'START_RECITER_DOWNLOAD') {
+    event.waitUntil(downloadReciterAudio(data.reciterId));
   }
 });
 
