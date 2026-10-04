@@ -582,6 +582,23 @@ function handleSWMessage(event){
       btn.textContent='⬇ إكمال التحميل';
       if(prog)prog.textContent=`تم تحميل ${data.pagesDone} / ${data.pagesTotal} صفحة`;
     }
+  }else if(data.type==='RECITER_DOWNLOAD_PROGRESS'){
+    const rBtn=document.getElementById('dlbtn-'+data.reciterId);
+    const rProg=document.getElementById('dlprog-'+data.reciterId);
+    const unitLabel = data.unit==='surah' ? 'سورة' : 'آية';
+    if(rProg){rProg.classList.add('show');rProg.textContent=`${data.done} / ${data.total} ${unitLabel}`;}
+    if(rBtn){rBtn.textContent='جاري التحميل...';rBtn.classList.add('downloading');rBtn.disabled=true;}
+  }else if(data.type==='RECITER_DOWNLOAD_DONE'){
+    markReciterDownloaded(data.reciterId);
+    const rBtn=document.getElementById('dlbtn-'+data.reciterId);
+    const rProg=document.getElementById('dlprog-'+data.reciterId);
+    if(rBtn)rBtn.outerHTML=`<span class="dl-btn downloaded">✓ محمّل أوفلاين</span>`;
+    if(rProg)rProg.textContent='اكتمل التحميل ✓';
+  }else if(data.type==='RECITER_DOWNLOAD_ERROR'){
+    const rBtn=document.getElementById('dlbtn-'+data.reciterId);
+    const rProg=document.getElementById('dlprog-'+data.reciterId);
+    if(rBtn){rBtn.textContent='⬇ إعادة المحاولة';rBtn.classList.remove('downloading');rBtn.disabled=false;}
+    if(rProg)rProg.textContent='تعذّر إكمال التحميل، تحقق من اتصال الإنترنت';
   }
 }
 
@@ -887,42 +904,16 @@ async function startReciterDownload(reciterId){
   btn.classList.add('downloading');
   btn.disabled = true;
   prog.classList.add('show');
+  prog.textContent = 'جاري بدء التحميل...';
 
-  const reciter = RECITERS.find(r=>r.id===reciterId);
-  const cache = await caches.open(OFFLINE_CACHE);
-
-  try {
-    if(!reciter.ayahByAyah){
-      for(let s=1; s<=114; s++){
-        const url = reciter.surahUrl(s);
-        if(!(await cache.match(url))){
-          try{ const r=await fetch(url); if(r.ok) await cache.put(url,r); }catch{}
-        }
-        prog.textContent = `${s} / 114 سورة`;
-      }
-    } else {
-      let done=0, total=TOTAL_AYAT;
-      for(let s=1; s<=114; s++){
-        const ayatInSurah = SURAH_AYAT_COUNTS[s-1];
-        for(let a=1; a<=ayatInSurah; a++){
-          const url = ayahAudioUrl(s,a).replace(currentReciterId,reciterId);
-          if(!(await cache.match(url))){
-            try{ const r=await fetch(url); if(r.ok) await cache.put(url,r); }catch{}
-          }
-          done++;
-          if(done%50===0) prog.textContent = `${done} / ${total} آية`;
-        }
-      }
-    }
-
-    markReciterDownloaded(reciterId);
-    btn.outerHTML = `<span class="dl-btn downloaded">✓ محمّل أوفلاين</span>`;
-    prog.textContent = 'اكتمل التحميل ✓';
-  } catch(err){
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    reg.active.postMessage({type:'START_RECITER_DOWNLOAD', reciterId});
+  }catch(err){
     btn.textContent = '⬇ إعادة المحاولة';
     btn.classList.remove('downloading');
     btn.disabled = false;
-    prog.textContent = 'فشل التحميل، حاول مرة أخرى';
+    prog.textContent = 'يرجى إعادة فتح التطبيق والمحاولة مرة أخرى';
   }
 }
 
