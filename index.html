@@ -603,6 +603,7 @@ renderHome();
 async function ensureFontLoaded(fontName){
   if(loadedFonts.has(fontName))return;
   const suffix=fontName==='QCF4_QBSML'?'':'_W';
+  const localUrl=`./quran-data/fonts/${fontName}${suffix}.woff2`;
   const url=`${FONT_CDN}/${fontName}${suffix}.woff2`;
   loadedFonts.add(fontName);
   let srcUrl=url;
@@ -610,7 +611,12 @@ async function ensureFontLoaded(fontName){
     const cache=await caches.open(PAGES_CACHE);
     let res=await cache.match(url);
     if(!res){
-      res=await fetch(url);
+      try{
+        res=await fetch(localUrl);
+        if(!res.ok)throw new Error('local missing');
+      }catch(e){
+        res=await fetch(url);
+      }
       if(res.ok)await cache.put(url,res.clone());
     }
     if(res && res.ok){
@@ -625,11 +631,17 @@ async function ensureFontLoaded(fontName){
 }
 async function fetchPageData(pageNum){
   if(pageCache[pageNum])return pageCache[pageNum];
+  const localUrl=`./quran-data/pages/${pad3(pageNum)}.json`;
   const url=`${RAW_BASE}/pages/${pad3(pageNum)}.json`;
   const cache=await caches.open(PAGES_CACHE);
   let res=await cache.match(url);
   if(!res){
-    res=await fetch(url);
+    try{
+      res=await fetch(localUrl);
+      if(!res.ok)throw new Error('local missing');
+    }catch(e){
+      res=await fetch(url);
+    }
     if(!res.ok)throw new Error('fail');
     await cache.put(url,res.clone());
   }
@@ -884,7 +896,7 @@ async function startReciterDownload(reciterId){
       for(let s=1; s<=114; s++){
         const url = reciter.surahUrl(s);
         if(!(await cache.match(url))){
-          try{ const r=await fetch(url, {mode:'no-cors'}); await cache.put(url,r); }catch{}
+          try{ const r=await fetch(url); if(r.ok) await cache.put(url,r); }catch{}
         }
         prog.textContent = `${s} / 114 سورة`;
       }
@@ -895,7 +907,7 @@ async function startReciterDownload(reciterId){
         for(let a=1; a<=ayatInSurah; a++){
           const url = ayahAudioUrl(s,a).replace(currentReciterId,reciterId);
           if(!(await cache.match(url))){
-            try{ const r=await fetch(url, {mode:'no-cors'}); await cache.put(url,r); }catch{}
+            try{ const r=await fetch(url); if(r.ok) await cache.put(url,r); }catch{}
           }
           done++;
           if(done%50===0) prog.textContent = `${done} / ${total} آية`;
