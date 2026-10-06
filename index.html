@@ -594,11 +594,13 @@ function handleSWMessage(event){
     const rProg=document.getElementById('dlprog-'+data.reciterId);
     if(rBtn)rBtn.outerHTML=`<span class="dl-btn downloaded">✓ محمّل أوفلاين</span>`;
     if(rProg)rProg.textContent='اكتمل التحميل ✓';
+    stopDownloadService();
   }else if(data.type==='RECITER_DOWNLOAD_ERROR'){
     const rBtn=document.getElementById('dlbtn-'+data.reciterId);
     const rProg=document.getElementById('dlprog-'+data.reciterId);
     if(rBtn){rBtn.textContent='⬇ إعادة المحاولة';rBtn.classList.remove('downloading');rBtn.disabled=false;}
     if(rProg)rProg.textContent='تعذّر إكمال التحميل، تحقق من اتصال الإنترنت';
+    stopDownloadService();
   }
 }
 
@@ -907,6 +909,9 @@ async function startReciterDownload(reciterId){
   prog.textContent = 'جاري بدء التحميل...';
 
   try{
+    if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DownloadService){
+      try{ await window.Capacitor.Plugins.DownloadService.start(); }catch(e){}
+    }
     const reg = await navigator.serviceWorker.ready;
     reg.active.postMessage({type:'START_RECITER_DOWNLOAD', reciterId});
   }catch(err){
@@ -914,6 +919,12 @@ async function startReciterDownload(reciterId){
     btn.classList.remove('downloading');
     btn.disabled = false;
     prog.textContent = 'يرجى إعادة فتح التطبيق والمحاولة مرة أخرى';
+  }
+}
+
+function stopDownloadService(){
+  if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DownloadService){
+    try{ window.Capacitor.Plugins.DownloadService.stop(); }catch(e){}
   }
 }
 
