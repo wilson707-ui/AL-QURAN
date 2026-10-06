@@ -318,6 +318,10 @@
   .support-send-btn{width:100%;background:var(--gold);color:#1a1208;border:none;padding:14px;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;}
   .support-send-btn:disabled{opacity:.5;cursor:default;}
   .support-close{width:100%;background:transparent;border:1px solid var(--line);color:var(--ink-dim);padding:12px;border-radius:12px;cursor:pointer;font-family:inherit;font-size:14px;margin-top:8px;}
+
+  .share-ayah-btn{display:block;margin:14px auto 4px;background:transparent;border:1px solid var(--gold-soft);color:var(--gold);padding:9px 20px;border-radius:22px;cursor:pointer;font-family:inherit;font-size:13px;transition:all .2s;}
+  .share-ayah-btn:hover{background:rgba(201,163,86,0.15);border-color:var(--gold);}
+  .share-ayah-btn:disabled{opacity:.6;cursor:default;}
 </style>
 </head>
 <body>
@@ -733,6 +737,129 @@ function shrinkOverflowingLines(){
   });
 }
 
+
+/* =====================================================
+   مشاركة الآية كصورة
+   ===================================================== */
+function shareBtnHtml(vk){
+  return `<button class="share-ayah-btn" onclick="shareAyahImage('${vk}',this)">📤 مشاركة الآية كصورة</button>`;
+}
+
+async function getVerseWords(vk){
+  const words=[];
+  for(const p of [currentPage-1,currentPage,currentPage+1]){
+    if(p<1||p>TOTAL_PAGES)continue;
+    let data;
+    try{data=await fetchPageData(p);}catch(e){continue;}
+    data.lines.forEach(l=>l.words.forEach(w=>{
+      if(w.verse_key===vk&&w.type!=='surah_header')words.push(w);
+    }));
+  }
+  return words;
+}
+
+async function buildAyahCanvas(vk){
+  const words=await getVerseWords(vk);
+  if(!words.length)throw new Error('no words');
+  const fonts=[...new Set(words.map(w=>w.font))];
+  for(const f of fonts){ await ensureFontLoaded(f); }
+
+  const cs=getComputedStyle(document.body);
+  const col=(n,d)=>(cs.getPropertyValue(n).trim()||d);
+  const bg=col('--bg','#0f1410'), ink=col('--ink','#e9e4d4'),
+        gold=col('--gold','#c9a356'), dim=col('--ink-dim','#9aa394');
+
+  const W=1080, PAD=100, MAXW=W-PAD*2;
+  const size = words.length>90 ? 38 : words.length>40 ? 46 : 58;
+  const gap=size*0.35, lineH=size*2.1;
+  const chOf=w=>w.char||codeToChar(w.code);
+
+  // قياس الكلمات وتقسيمها على أسطر
+  const m=document.createElement('canvas').getContext('2d');
+  const lines=[]; let cur=[], curW=0;
+  words.forEach(w=>{
+    m.font=`${size}px '${w.font}'`;
+    const width=m.measureText(chOf(w)).width;
+    if(cur.length && curW+gap+width>MAXW){ lines.push({items:cur,width:curW}); cur=[]; curW=0; }
+    curW += (cur.length?gap:0)+width;
+    cur.push({w,width});
+  });
+  if(cur.length)lines.push({items:cur,width:curW});
+
+  const headerH=260, footerH=170;
+  const H=Math.round(headerH+lines.length*lineH+footerH);
+  const canvas=document.createElement('canvas');
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle=gold; ctx.globalAlpha=0.55; ctx.lineWidth=3;
+  ctx.strokeRect(28,28,W-56,H-56);
+  ctx.globalAlpha=0.25; ctx.strokeRect(40,40,W-80,H-80);
+  ctx.globalAlpha=1;
+
+  const [sNum,aNum]=vk.split(':').map(Number);
+  const surah=(typeof SURAHS_FULL!=='undefined')?SURAHS_FULL.find(s=>s.num===sNum):null;
+  ctx.textBaseline='middle'; ctx.textAlign='center'; ctx.direction='rtl';
+  ctx.fillStyle=gold;
+  ctx.font=`700 56px Tajawal, 'Segoe UI', Arial, sans-serif`;
+  ctx.fillText(surah?`سورة ${surah.name}`:`سورة ${sNum}`, W/2, 120);
+  ctx.fillStyle=dim;
+  ctx.font=`400 32px Tajawal, 'Segoe UI', Arial, sans-serif`;
+  ctx.fillText(`آية ${aNum}`, W/2, 184);
+  ctx.strokeStyle=gold; ctx.globalAlpha=0.4; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W/2-160,226); ctx.lineTo(W/2+160,226); ctx.stroke();
+  ctx.globalAlpha=1;
+
+  // نص الآية (من اليمين لليسار)
+  ctx.direction='ltr'; ctx.textAlign='left'; ctx.fillStyle=ink;
+  lines.forEach((ln,i)=>{
+    const y=headerH+i*lineH+lineH/2;
+    let xr=(W+ln.width)/2;
+    ln.items.forEach(it=>{
+      ctx.font=`${size}px '${it.w.font}'`;
+      const x=xr-it.width;
+      ctx.fillText(chOf(it.w), x, y);
+      xr=x-gap;
+    });
+  });
+
+  ctx.direction='rtl'; ctx.textAlign='center'; ctx.fillStyle=gold;
+  ctx.font=`700 36px Tajawal, 'Segoe UI', Arial, sans-serif`;
+  ctx.fillText('زاد القرآن', W/2, H-85);
+  return canvas;
+}
+
+async function shareAyahImage(vk,btn){
+  const oldText=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='جاري تجهيز الصورة...';}
+  try{
+    const canvas=await buildAyahCanvas(vk);
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    if(!blob)throw new Error('blob');
+    const parts=vk.split(':');
+    const file=new File([blob],`ayah-${parts[0]}-${parts[1]}.png`,{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file],title:'زاد القرآن'});
+      }catch(e){
+        if(!(e&&e.name==='AbortError'))throw e;
+      }
+    }else{
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement('a');
+      link.href=url; link.download=file.name;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),5000);
+      showToast('✓ تم حفظ الصورة');
+    }
+  }catch(e){
+    showToast('تعذّر إنشاء الصورة');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=oldText;}
+  }
+}
+
 const tafsirCache={};
 async function showTafsir(verseKey){
   const[surahNum,ayahNum]=verseKey.split(':');
@@ -740,15 +867,15 @@ async function showTafsir(verseKey){
   if(box.dataset.currentVerse===verseKey&&box.classList.contains('open')){box.classList.remove('open');return;}
   box.dataset.currentVerse=verseKey;box.classList.add('open');
   box.innerHTML=`<span class="tafsir-loading">جاري تحميل التفسير...</span>`;
-  if(tafsirCache[verseKey]){box.innerHTML=tafsirCache[verseKey];return;}
+  if(tafsirCache[verseKey]){box.innerHTML=tafsirCache[verseKey]+shareBtnHtml(verseKey);return;}
   try{
     const res=await fetch(`${TAFSIR_BASE}/ayah/${surahNum}:${ayahNum}/${TAFSIR_EDITION}`);
     if(!res.ok)throw new Error('fail');
     const json=await res.json();
     if(!json.data?.text)throw new Error('empty');
     const html=`<span class="tafsir-label">التفسير الميسر · آية ${ayahNum}</span>${json.data.text}`;
-    tafsirCache[verseKey]=html;box.innerHTML=html;
-  }catch{box.innerHTML=`<span class="tafsir-loading">تعذّر تحميل التفسير.</span>`;}
+    tafsirCache[verseKey]=html;box.innerHTML=html+shareBtnHtml(verseKey);
+  }catch{box.innerHTML=`<span class="tafsir-loading">تعذّر تحميل التفسير.</span>`+shareBtnHtml(verseKey);}
 }
 
 /* =====================================================
