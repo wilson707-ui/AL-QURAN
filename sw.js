@@ -12,7 +12,7 @@
       داخل التطبيق أثناء التحميل.
 */
 
-const SHELL_CACHE = 'quran-shell-v1';
+const SHELL_CACHE = 'quran-shell-v2';
 const PAGES_CACHE = 'quran-pages-v1'; // نفس الاسم المستخدم داخل index.html
 const OFFLINE_CACHE = 'quran-offline-v1'; // ذاكرة الصوتيات، نفس الاسم المستخدم داخل index.html
 const SHELL_FILES = ['./', './index.html', './manifest.json'];
@@ -80,7 +80,7 @@ self.addEventListener('fetch', event => {
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
       try {
-        const res = await fetch(req);
+        const res = await fetch(req.url, { cache: 'no-cache' });
         const cache = await caches.open(SHELL_CACHE);
         cache.put('./index.html', res.clone());
         return res;
