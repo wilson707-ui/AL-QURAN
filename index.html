@@ -322,6 +322,47 @@
   .share-ayah-btn{display:block;margin:14px auto 4px;background:transparent;border:1px solid var(--gold-soft);color:var(--gold);padding:9px 20px;border-radius:22px;cursor:pointer;font-family:inherit;font-size:13px;transition:all .2s;}
   .share-ayah-btn:hover{background:rgba(201,163,86,0.15);border-color:var(--gold);}
   .share-ayah-btn:disabled{opacity:.6;cursor:default;}
+
+  .clickable-word.hl-y{background:rgba(250,204,21,.42);}
+  .clickable-word.hl-g{background:rgba(74,222,128,.36);}
+  .clickable-word.hl-p{background:rgba(244,114,182,.34);}
+  .clickable-word.hl-b{background:rgba(96,165,250,.36);}
+  .clickable-word.has-note{box-shadow:inset 0 -2px 0 rgba(138,116,64,.85);}
+  .hl-bar{margin-top:12px;padding-top:10px;border-top:1px dashed rgba(138,116,64,.45);}
+  .hl-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .hl-label{font-size:12px;color:#8a7440;font-weight:700;}
+  .hl-dot{width:26px;height:26px;border-radius:50%;border:2px solid rgba(74,63,40,.25);cursor:pointer;padding:0;}
+  .hl-dot.active{border-color:#4a3f28;box-shadow:0 0 0 2px #f3ead2,0 0 0 4px #8a7440;}
+  .hl-small{background:transparent;border:1px solid #8a7440;color:#6b5a2e;padding:6px 14px;border-radius:18px;cursor:pointer;font-family:inherit;font-size:12px;}
+  .hl-note-text{background:rgba(255,255,255,.55);border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.8;color:#4a3f28;white-space:pre-wrap;}
+  .hl-editor{display:flex;flex-direction:column;gap:8px;}
+  .hl-editor textarea{width:100%;min-height:80px;border:1px solid #8a7440;border-radius:8px;padding:8px;font-family:inherit;font-size:14px;background:#fffaf0;color:#4a3f28;direction:rtl;resize:vertical;box-sizing:border-box;}
+  .hl-save{align-self:center;background:#8a7440;color:#fff;border:none;padding:8px 26px;border-radius:18px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;}
+  .hl-list{display:flex;flex-direction:column;gap:12px;padding:16px 20px;}
+  .hl-empty{color:var(--ink-dim);text-align:center;line-height:2;padding:40px 10px;font-size:14px;}
+  .hl-item{background:var(--bg-elevated);border:1px solid var(--line);border-radius:14px;padding:14px;}
+  .hl-item-head{display:flex;align-items:center;gap:10px;color:var(--ink);font-size:14px;}
+  .hl-color{width:16px;height:16px;border-radius:50%;flex-shrink:0;}
+  .hl-page{margin-right:auto;color:var(--ink-dim);font-size:12px;}
+  .hl-item-note{margin-top:10px;color:var(--ink-dim);font-size:13px;line-height:1.8;white-space:pre-wrap;}
+  .hl-item-actions{display:flex;gap:10px;margin-top:12px;}
+  .hl-item-actions button{flex:1;background:transparent;border:1px solid var(--gold-soft);color:var(--gold);padding:8px;border-radius:16px;cursor:pointer;font-family:inherit;font-size:12px;}
+  .hl-item-actions button:last-child{border-color:#6b3a3a;color:#e0a0a0;}
+  .rem-list{display:flex;flex-direction:column;gap:12px;padding:16px 20px;}
+  .rem-note{color:var(--ink-dim);font-size:12px;line-height:1.9;text-align:center;padding:4px 6px;}
+  .rem-warn{background:var(--bg-elevated);border:1px solid #6b3a3a;color:#e0a0a0;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.9;text-align:center;}
+  .rem-item{background:var(--bg-elevated);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;}
+  .rem-icon{font-size:28px;}
+  .rem-info{flex:1;min-width:0;}
+  .rem-title{color:var(--ink);font-size:15px;font-weight:600;}
+  .rem-time{margin-top:6px;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:6px 10px;font-family:inherit;font-size:14px;}
+  .rem-test{background:transparent;border:1px solid var(--gold-soft);color:var(--gold);padding:10px;border-radius:18px;cursor:pointer;font-family:inherit;font-size:13px;}
+  .switch{position:relative;width:46px;height:26px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .switch .slider{position:absolute;inset:0;background:var(--line);border-radius:26px;transition:.2s;cursor:pointer;}
+  .switch .slider:before{content:'';position:absolute;width:20px;height:20px;right:3px;top:3px;background:var(--ink);border-radius:50%;transition:.2s;}
+  .switch input:checked+.slider{background:var(--gold);}
+  .switch input:checked+.slider:before{transform:translateX(-20px);background:#1a1208;}
 </style>
 </head>
 <body>
@@ -735,6 +776,7 @@ function renderPage(data){
     <div class="tafsir-box" id="tafsirBox"></div>
   </div>`;
   pageWrap.dataset.verseKeys=JSON.stringify(verseKeys);
+  applyHighlights();
   pageWrap.querySelectorAll('.clickable-word').forEach(el=>{
     el.addEventListener('click',()=>{const vk=el.dataset.verseKey;playVerseOnly(vk);showTafsir(vk);});
   });
@@ -756,7 +798,7 @@ function shrinkOverflowingLines(){
    مشاركة الآية كصورة
    ===================================================== */
 function shareBtnHtml(vk){
-  return `<button class="share-ayah-btn" onclick="shareAyahImage('${vk}',this)">📤 مشاركة الآية كصورة</button>`;
+  return `<button class="share-ayah-btn" onclick="shareAyahImage('${vk}',this)">📤 مشاركة الآية كصورة</button>`+hlBarHtml(vk);
 }
 
 async function getVerseWords(vk){
@@ -872,6 +914,204 @@ async function shareAyahImage(vk,btn){
   }finally{
     if(btn){btn.disabled=false;btn.textContent=oldText;}
   }
+}
+
+
+/* =====================================================
+   التظليل والملاحظات
+   ===================================================== */
+const HL_COLORS=[
+  {id:'y',name:'أصفر',bg:'#fde047'},
+  {id:'g',name:'أخضر',bg:'#4ade80'},
+  {id:'p',name:'وردي',bg:'#f472b6'},
+  {id:'b',name:'أزرق',bg:'#60a5fa'}
+];
+function getHL(){ try{return JSON.parse(localStorage.getItem('quran_highlights')||'{}')||{};}catch(e){return {};} }
+function saveHL(o){ try{localStorage.setItem('quran_highlights',JSON.stringify(o));}catch(e){} }
+function hlEsc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function hlCountText(){ const n=Object.keys(getHL()).length; return n ? n+' آية' : 'ظلّل ودوّن ملاحظاتك'; }
+
+function applyHighlights(){
+  const hl=getHL();
+  document.querySelectorAll('.clickable-word').forEach(el=>{
+    HL_COLORS.forEach(c=>el.classList.remove('hl-'+c.id));
+    el.classList.remove('has-note');
+    const h=hl[el.dataset.verseKey];
+    if(h){
+      if(h.color) el.classList.add('hl-'+h.color);
+      if(h.note) el.classList.add('has-note');
+    }
+  });
+}
+
+function hlBarHtml(vk){
+  return `<div class="hl-bar" id="hlBar" data-vk="${vk}">${hlBarInner(vk,false)}</div>`;
+}
+function hlBarInner(vk,editing){
+  const h=getHL()[vk]||{};
+  const dots=HL_COLORS.map(c=>`<button class="hl-dot${h.color===c.id?' active':''}" style="background:${c.bg}" title="${c.name}" onclick="setHL('${vk}','${c.id}')"></button>`).join('');
+  const clear=(h.color||h.note)?`<button class="hl-small" onclick="clearHL('${vk}')">إزالة</button>`:'';
+  const noteBtn=`<button class="hl-small" onclick="toggleNoteEditor('${vk}')">📝 ${h.note?'تعديل الملاحظة':'إضافة ملاحظة'}</button>`;
+  const preview=(h.note&&!editing)?`<div class="hl-note-text">${hlEsc(h.note)}</div>`:'';
+  const editor=editing?`<div class="hl-editor"><textarea id="hlNoteInput" maxlength="500" placeholder="اكتب ملاحظتك هنا...">${hlEsc(h.note||'')}</textarea><button class="hl-save" onclick="saveNote('${vk}')">حفظ</button></div>`:'';
+  return `<div class="hl-row"><span class="hl-label">تظليل:</span>${dots}${clear}</div><div class="hl-row">${noteBtn}</div>${preview}${editor}`;
+}
+function refreshHlBar(vk,editing){
+  const bar=document.getElementById('hlBar');
+  if(bar&&bar.dataset.vk===vk) bar.innerHTML=hlBarInner(vk,!!editing);
+}
+function setHL(vk,c){
+  const all=getHL(); const h=all[vk]||{};
+  h.color=(h.color===c)?null:c; h.page=currentPage; h.t=Date.now();
+  if(!h.color&&!h.note){ delete all[vk]; } else { all[vk]=h; }
+  saveHL(all); applyHighlights(); refreshHlBar(vk,false);
+}
+function clearHL(vk){
+  const all=getHL(); delete all[vk];
+  saveHL(all); applyHighlights(); refreshHlBar(vk,false); showToast('تمت الإزالة');
+}
+function toggleNoteEditor(vk){
+  const open=!!document.querySelector('#hlBar .hl-editor');
+  refreshHlBar(vk,!open);
+  const input=document.getElementById('hlNoteInput'); if(input) input.focus();
+}
+function saveNote(vk){
+  const input=document.getElementById('hlNoteInput');
+  const text=input?input.value.trim():'';
+  const all=getHL(); const h=all[vk]||{color:null};
+  h.note=text; h.page=currentPage; h.t=Date.now();
+  if(!h.color&&!h.note){ delete all[vk]; } else { all[vk]=h; }
+  saveHL(all); applyHighlights(); refreshHlBar(vk,false); showToast('✓ تم الحفظ');
+}
+
+function renderHighlights(noPush){
+  if(!noPush) pushScreen('highlights');
+  const all=getHL();
+  const keys=Object.keys(all).sort((a,b)=>(all[b].t||0)-(all[a].t||0));
+  const items=keys.map(vk=>{
+    const h=all[vk]; const parts=vk.split(':');
+    const sur=SURAHS_FULL.find(x=>x.num===Number(parts[0]));
+    const col=HL_COLORS.find(c=>c.id===h.color);
+    const dotStyle=col?`background:${col.bg}`:'border:1px dashed var(--ink-dim)';
+    const note=h.note?`<div class="hl-item-note">${hlEsc(h.note)}</div>`:'';
+    return `<div class="hl-item">
+      <div class="hl-item-head"><span class="hl-color" style="${dotStyle}"></span><b>${sur?'سورة '+sur.name:'سورة '+parts[0]} · آية ${parts[1]}</b><span class="hl-page">ص ${h.page||''}</span></div>
+      ${note}
+      <div class="hl-item-actions"><button onclick="openHL(${Number(h.page)||1})">فتح الصفحة</button><button onclick="deleteHL('${vk}')">حذف</button></div>
+    </div>`;
+  }).join('');
+  const empty=`<div class="hl-empty">ما عندك تظليلات بعد.<br>افتح المصحف، اضغط على أي آية، واختر لون التظليل أو أضف ملاحظة.</div>`;
+  app.innerHTML=`
+    <div class="sub-screen">
+      <div class="sub-topbar">
+        <button class="back-btn" onclick="renderHome()">${SVG.back}</button>
+        <h2>تظليلاتي وملاحظاتي</h2>
+        <div style="width:36px"></div>
+      </div>
+      <div class="sub-content"><div class="hl-list">${items||empty}</div></div>
+    </div>`;
+}
+function openHL(page){ setLastPage(page); goToQuran(); }
+function deleteHL(vk){
+  const all=getHL(); delete all[vk]; saveHL(all);
+  renderHighlights(true); showToast('تم الحذف');
+}
+
+/* =====================================================
+   التذكيرات (اختيارية — تعمل داخل تطبيق الأندرويد)
+   ===================================================== */
+const REMINDERS=[
+  {id:101,key:'wird', icon:'📖',title:'ورد القرآن',  body:'حان وقت وردك اليومي من القرآن الكريم',def:'20:00'},
+  {id:102,key:'sabah',icon:'🌅',title:'أذكار الصباح',body:'لا تنسَ أذكار الصباح',def:'06:00'},
+  {id:103,key:'masaa',icon:'🌇',title:'أذكار المساء',body:'لا تنسَ أذكار المساء',def:'17:30'}
+];
+function getRem(){ try{return JSON.parse(localStorage.getItem('quran_reminders')||'{}')||{};}catch(e){return {};} }
+function saveRem(o){ try{localStorage.setItem('quran_reminders',JSON.stringify(o));}catch(e){} }
+function lnPlugin(){
+  return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications)||null;
+}
+async function ensureNotifPermission(){
+  const LN=lnPlugin(); if(!LN) return false;
+  let p=await LN.checkPermissions();
+  if(p.display!=='granted') p=await LN.requestPermissions();
+  return p.display==='granted';
+}
+async function scheduleReminder(r,time){
+  const LN=lnPlugin();
+  const parts=String(time||r.def).split(':');
+  try{ await LN.cancel({notifications:[{id:r.id}]}); }catch(e){}
+  await LN.schedule({notifications:[{
+    id:r.id, title:r.title, body:r.body,
+    schedule:{ on:{hour:Number(parts[0]),minute:Number(parts[1])}, allowWhileIdle:true }
+  }]});
+}
+
+function renderReminders(noPush){
+  if(!noPush) pushScreen('reminders');
+  const st=getRem(); const has=!!lnPlugin();
+  const rows=REMINDERS.map(r=>{
+    const c=st[r.key]||{on:false,time:r.def};
+    return `<div class="rem-item">
+      <div class="rem-icon">${r.icon}</div>
+      <div class="rem-info">
+        <div class="rem-title">${r.title}</div>
+        <input type="time" class="rem-time" value="${c.time||r.def}" onchange="changeReminderTime('${r.key}',this.value)">
+      </div>
+      <label class="switch"><input type="checkbox" ${c.on?'checked':''} onchange="toggleReminder('${r.key}',this)"><span class="slider"></span></label>
+    </div>`;
+  }).join('');
+  const warn=has?'':`<div class="rem-warn">التذكيرات تعمل داخل تطبيق الأندرويد فقط، وما تشتغل من المتصفح.</div>`;
+  app.innerHTML=`
+    <div class="sub-screen">
+      <div class="sub-topbar">
+        <button class="back-btn" onclick="renderHome()">${SVG.back}</button>
+        <h2>التذكيرات</h2>
+        <div style="width:36px"></div>
+      </div>
+      <div class="sub-content"><div class="rem-list">
+        <div class="rem-note">كل التذكيرات مقفلة بالبداية. فعّل اللي تحتاجه واختر وقته، وتوصلك إشعارات يومية حتى لو التطبيق مقفول.</div>
+        ${warn}
+        ${rows}
+        <button class="rem-test" onclick="testReminder()">إرسال إشعار تجريبي بعد 5 ثواني</button>
+      </div></div>
+    </div>`;
+}
+async function toggleReminder(key,el){
+  const r=REMINDERS.find(x=>x.key===key);
+  const st=getRem(); const c=st[key]||{on:false,time:r.def};
+  const LN=lnPlugin();
+  if(!LN){ el.checked=false; showToast('التذكيرات تعمل داخل تطبيق الأندرويد فقط'); return; }
+  if(el.checked){
+    try{
+      const ok=await ensureNotifPermission();
+      if(!ok){ el.checked=false; showToast('فعّل إذن الإشعارات من إعدادات الجوال'); return; }
+      await scheduleReminder(r,c.time);
+      c.on=true; st[key]=c; saveRem(st); showToast('✓ تم تفعيل التذكير');
+    }catch(e){ el.checked=false; showToast('تعذّر تفعيل التذكير'); }
+  }else{
+    try{ await LN.cancel({notifications:[{id:r.id}]}); }catch(e){}
+    c.on=false; st[key]=c; saveRem(st); showToast('تم إيقاف التذكير');
+  }
+}
+async function changeReminderTime(key,value){
+  if(!value) return;
+  const r=REMINDERS.find(x=>x.key===key);
+  const st=getRem(); const c=st[key]||{on:false,time:r.def};
+  c.time=value; st[key]=c; saveRem(st);
+  if(c.on&&lnPlugin()){
+    try{ await scheduleReminder(r,value); showToast('✓ تم تحديث الوقت'); }
+    catch(e){ showToast('تعذّر تحديث الوقت'); }
+  }
+}
+async function testReminder(){
+  const LN=lnPlugin();
+  if(!LN){ showToast('التجربة تعمل داخل تطبيق الأندرويد فقط'); return; }
+  try{
+    const ok=await ensureNotifPermission();
+    if(!ok){ showToast('فعّل إذن الإشعارات من إعدادات الجوال'); return; }
+    await LN.schedule({notifications:[{id:199,title:'تجربة التذكير',body:'الإشعارات تعمل بشكل سليم ✓',schedule:{at:new Date(Date.now()+5000),allowWhileIdle:true}}]});
+    showToast('بيوصلك إشعار بعد 5 ثواني — اطلع من التطبيق');
+  }catch(e){ showToast('تعذّر إرسال الإشعار'); }
 }
 
 const tafsirCache={};
@@ -1231,6 +1471,16 @@ function renderHome(){
           <div class="card-icon">📿</div>
           <div class="card-title">التسبيح</div>
           <div class="card-sub">عداد الذكر</div>
+        </div>
+        <div class="home-card" onclick="renderHighlights()">
+          <div class="card-icon">🖍️</div>
+          <div class="card-title">تظليلاتي وملاحظاتي</div>
+          <div class="card-sub">${hlCountText()}</div>
+        </div>
+        <div class="home-card" onclick="renderReminders()">
+          <div class="card-icon">⏰</div>
+          <div class="card-title">التذكيرات</div>
+          <div class="card-sub">ورد وأذكار (اختياري)</div>
         </div>
 
       </div>
@@ -1967,6 +2217,10 @@ window.addEventListener('popstate', function(e){
     renderTasbih();
   } else if(state.screen === 'surah_list'){
     renderSurahList();
+  } else if(state.screen === 'highlights'){
+    renderHighlights();
+  } else if(state.screen === 'reminders'){
+    renderReminders();
   } else if(state.screen === 'prayer'){
     renderPrayerTimes();
   } else if(state.screen && state.screen.startsWith('dua_')){
