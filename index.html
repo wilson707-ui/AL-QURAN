@@ -618,7 +618,21 @@ async function startPagesDownload(){
 }
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  // تحديث تلقائي للجميع: يفحص وجود نسخة جديدة عند الفتح وعند الرجوع للتطبيق،
+  // ولما تُفعَّل نسخة جديدة يعيد تحميل الصفحة مرة وحدة ليعرض آخر تحديث.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloadingForUpdate = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(!hadController || reloadingForUpdate) return;
+    reloadingForUpdate = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(reg=>{
+    reg.update().catch(()=>{});
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.visibilityState==='visible') reg.update().catch(()=>{});
+    });
+  }).catch(()=>{});
   navigator.serviceWorker.addEventListener('message', handleSWMessage);
 }
 renderHome();
