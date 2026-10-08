@@ -803,7 +803,7 @@ function shrinkOverflowingLines(){
 function shareBtnHtml(vk){
   return `<div class="share-row">
     <button class="share-ayah-btn" onclick="shareAyahImage('${vk}',this)">📤 مشاركة كصورة</button>
-    <button class="share-ayah-btn" onclick="downloadAyahImage('${vk}',this)">⬇️ تحميل الصورة</button>
+    <button class="share-ayah-btn" onclick="saveAyahImage('${vk}',this)">💾 حفظ الصورة</button>
     <button class="share-ayah-btn" onclick="shareAyahLink('${vk}',this)">🔗 مشاركة كرابط</button>
   </div>`+hlBarHtml(vk);
 }
@@ -904,31 +904,6 @@ function isCancelError(e){
   return !!(e&&(e.name==='AbortError'||/cancel/i.test(String(e.message||e))));
 }
 
-async function copyAyahImage(vk,btn){
-  const oldText=btn?btn.textContent:'';
-  if(btn){btn.disabled=true;btn.textContent='جاري النسخ...';}
-  try{
-    const canvas=await buildAyahCanvas(vk);
-    if(isNativeApp()){
-      const P=nativePlugins();
-      if(!P.Clipboard){ showToast('النسخ يحتاج تحديث التطبيق'); return; }
-      await P.Clipboard.write({image:canvas.toDataURL('image/png'),label:'زاد القرآن'});
-      showToast('✓ تم نسخ الصورة');
-    }else if(navigator.clipboard&&window.ClipboardItem){
-      const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
-      await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
-      showToast('✓ تم نسخ الصورة');
-    }else{
-      showToast('جهازك ما يدعم نسخ الصور');
-    }
-  }catch(e){
-    const msg=(e&&e.message)?String(e.message).slice(0,60):'';
-    showToast('تعذّر النسخ'+(msg?': '+msg:''));
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent=oldText;}
-  }
-}
-
 async function getAyahPlainText(vk){
   const parts=vk.split(':'); const s=Number(parts[0]), a=Number(parts[1]);
   try{
@@ -988,6 +963,49 @@ async function shareAyahLink(vk,btn){
   }
 }
 
+async function saveAyahImage(vk,btn){
+  const oldText=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='جاري الحفظ...';}
+  try{
+    const canvas=await buildAyahCanvas(vk);
+    const parts=vk.split(':');
+    if(isNativeApp()){
+      // داخل تطبيق الأندرويد: نحفظ الصورة بالمعرض داخل ألبوم باسم ZadQuran
+      const M=nativePlugins().Media;
+      if(!M){ showToast('الحفظ يحتاج تحديث التطبيق'); return; }
+      const ALBUM='ZadQuran';
+      let list=await M.getAlbums();
+      let album=(list.albums||[]).find(a=>a.name===ALBUM);
+      if(!album){
+        await M.createAlbum({name:ALBUM});
+        list=await M.getAlbums();
+        album=(list.albums||[]).find(a=>a.name===ALBUM);
+      }
+      if(!album) throw new Error('تعذّر إنشاء الألبوم');
+      await M.savePhoto({
+        path:canvas.toDataURL('image/png'),
+        albumIdentifier:album.identifier,
+        fileName:`ayah-${parts[0]}-${parts[1]}-${Date.now()%100000}`
+      });
+      showToast('✓ تم حفظ الصورة بالمعرض (ألبوم ZadQuran)');
+    }else{
+      const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+      if(!blob) throw new Error('blob');
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement('a');
+      link.href=url; link.download=`ayah-${parts[0]}-${parts[1]}.png`;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),5000);
+      showToast('تم تنزيل الصورة');
+    }
+  }catch(e){
+    const msg=(e&&e.message)?String(e.message).slice(0,60):'';
+    showToast('تعذّر الحفظ'+(msg?': '+msg:''));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=oldText;}
+  }
+}
+
 function blobToBase64(blob){
   return new Promise((resolve,reject)=>{
     const r=new FileReader();
@@ -1041,46 +1059,6 @@ async function shareAyahImage(vk,btn){
   }
 }
 
-
-async function downloadAyahImage(vk,btn){
-  const oldText=btn?btn.textContent:'';
-  if(btn){btn.disabled=true;btn.textContent='جاري التحميل...';}
-  try{
-    const canvas=await buildAyahCanvas(vk);
-    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
-    if(!blob)throw new Error('blob');
-    const parts=vk.split(':');
-    const name=`ayah-${parts[0]}-${parts[1]}.png`;
-    if(isNativeApp()){
-      const P=nativePlugins();
-      if(!P.Filesystem){ showToast('التحميل يحتاج تحديث التطبيق'); return; }
-      const base64=await blobToBase64(blob);
-      try{
-        await P.Filesystem.writeFile({path:'ZadAlQuran/'+name,data:base64,directory:'DOCUMENTS',recursive:true});
-        showToast('✓ تم حفظ الصورة في مجلد Documents/ZadAlQuran');
-      }catch(err){
-        // إذا تعذّر الحفظ المباشر نفتح قائمة المشاركة ليحفظها المستخدم
-        if(!P.Share) throw err;
-        const saved=await P.Filesystem.writeFile({path:name,data:base64,directory:'CACHE'});
-        try{
-          await P.Share.share({title:'زاد القرآن',dialogTitle:'حفظ الصورة',files:[saved.uri]});
-        }catch(e2){ if(!isCancelError(e2)) throw e2; }
-      }
-    }else{
-      const url=URL.createObjectURL(blob);
-      const link=document.createElement('a');
-      link.href=url; link.download=name;
-      document.body.appendChild(link); link.click(); link.remove();
-      setTimeout(()=>URL.revokeObjectURL(url),5000);
-      showToast('✓ تم تحميل الصورة');
-    }
-  }catch(e){
-    const msg=(e&&e.message)?String(e.message).slice(0,60):'';
-    showToast('تعذّر التحميل'+(msg?': '+msg:''));
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent=oldText;}
-  }
-}
 
 /* =====================================================
    التظليل والملاحظات
