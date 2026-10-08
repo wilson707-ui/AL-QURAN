@@ -363,6 +363,9 @@
   .switch .slider:before{content:'';position:absolute;width:20px;height:20px;right:3px;top:3px;background:var(--ink);border-radius:50%;transition:.2s;}
   .switch input:checked+.slider{background:var(--gold);}
   .switch input:checked+.slider:before{transform:translateX(-20px);background:#1a1208;}
+
+  .share-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0 4px;}
+  .share-row .share-ayah-btn{display:inline-block;margin:0;padding:8px 14px;font-size:12px;}
 </style>
 </head>
 <body>
@@ -798,7 +801,11 @@ function shrinkOverflowingLines(){
    مشاركة الآية كصورة
    ===================================================== */
 function shareBtnHtml(vk){
-  return `<button class="share-ayah-btn" onclick="shareAyahImage('${vk}',this)">📤 مشاركة الآية كصورة</button>`+hlBarHtml(vk);
+  return `<div class="share-row">
+    <button class="share-ayah-btn" onclick="shareAyahImage('${vk}',this)">📤 مشاركة كصورة</button>
+    <button class="share-ayah-btn" onclick="copyAyahImage('${vk}',this)">📋 نسخ كصورة</button>
+    <button class="share-ayah-btn" onclick="shareAyahLink('${vk}',this)">🔗 مشاركة كرابط</button>
+  </div>`+hlBarHtml(vk);
 }
 
 async function getVerseWords(vk){
@@ -884,6 +891,101 @@ async function buildAyahCanvas(vk){
   ctx.font=`700 36px Tajawal, 'Segoe UI', Arial, sans-serif`;
   ctx.fillText('زاد القرآن', W/2, H-85);
   return canvas;
+}
+
+function isNativeApp(){
+  const cap=window.Capacitor;
+  return !!(cap&&cap.isNativePlatform&&cap.isNativePlatform());
+}
+function nativePlugins(){
+  return (window.Capacitor&&window.Capacitor.Plugins)||{};
+}
+function isCancelError(e){
+  return !!(e&&(e.name==='AbortError'||/cancel/i.test(String(e.message||e))));
+}
+
+async function copyAyahImage(vk,btn){
+  const oldText=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='جاري النسخ...';}
+  try{
+    const canvas=await buildAyahCanvas(vk);
+    if(isNativeApp()){
+      const P=nativePlugins();
+      if(!P.Clipboard){ showToast('النسخ يحتاج تحديث التطبيق'); return; }
+      await P.Clipboard.write({image:canvas.toDataURL('image/png'),label:'زاد القرآن'});
+      showToast('✓ تم نسخ الصورة');
+    }else if(navigator.clipboard&&window.ClipboardItem){
+      const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+      await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+      showToast('✓ تم نسخ الصورة');
+    }else{
+      showToast('جهازك ما يدعم نسخ الصور');
+    }
+  }catch(e){
+    const msg=(e&&e.message)?String(e.message).slice(0,60):'';
+    showToast('تعذّر النسخ'+(msg?': '+msg:''));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=oldText;}
+  }
+}
+
+async function getAyahPlainText(vk){
+  const parts=vk.split(':'); const s=Number(parts[0]), a=Number(parts[1]);
+  try{
+    if(!ayahsData){
+      const saved=localStorage.getItem('ayahs_data_v1');
+      if(saved) ayahsData=JSON.parse(saved);
+    }
+  }catch(e){}
+  if(ayahsData){
+    const f=ayahsData.find(x=>x.surah===s&&x.ayah===a);
+    if(f&&f.text) return f.text;
+  }
+  try{
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),5000);
+    const r=await fetch(`${TAFSIR_BASE}/ayah/${vk}/quran-uthmani`,{signal:ctrl.signal});
+    clearTimeout(timer);
+    if(r.ok){
+      const j=await r.json();
+      if(j.data&&j.data.text) return j.data.text;
+    }
+  }catch(e){}
+  return '';
+}
+
+async function shareAyahLink(vk,btn){
+  const oldText=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='جاري التجهيز...';}
+  try{
+    const parts=vk.split(':');
+    const surah=SURAHS_FULL.find(x=>x.num===Number(parts[0]));
+    const text=await getAyahPlainText(vk);
+    const ref=`[سورة ${surah?surah.name:parts[0]}: ${parts[1]}]`;
+    const link=`https://quran.com/${parts[0]}/${parts[1]}`;
+    const msg=(text?`﴿ ${text} ﴾\n`:'')+ref+'\n'+link;
+    if(isNativeApp()){
+      const P=nativePlugins();
+      if(!P.Share){ showToast('المشاركة تحتاج تحديث التطبيق'); return; }
+      try{
+        await P.Share.share({title:'زاد القرآن',text:msg,dialogTitle:'مشاركة الآية'});
+      }catch(e){ if(!isCancelError(e)) throw e; }
+    }else if(navigator.share){
+      try{
+        await navigator.share({title:'زاد القرآن',text:msg});
+      }catch(e){ if(!isCancelError(e)) throw e; }
+    }else if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(msg);
+      showToast('✓ تم نسخ الآية مع الرابط');
+    }else{
+      showToast('جهازك ما يدعم المشاركة');
+    }
+  }catch(e){
+    const m=(e&&e.message)?String(e.message).slice(0,60):'';
+    showToast('تعذّرت المشاركة'+(m?': '+m:''));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=oldText;}
+  }
 }
 
 function blobToBase64(blob){
