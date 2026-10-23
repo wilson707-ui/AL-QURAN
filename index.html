@@ -366,6 +366,30 @@
 
   .share-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0 4px;}
   .share-row .share-ayah-btn{display:inline-block;margin:0;padding:8px 14px;font-size:12px;}
+
+  *{-webkit-tap-highlight-color:transparent;}
+  .tasbih-screen,.tasbih-circle,.tasbih-circle *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  .tasbih-circle{touch-action:manipulation;outline:none;}
+  .rem-time{cursor:pointer;direction:ltr;}
+  .tp-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;}
+  .tp-sheet{width:100%;max-width:420px;background:var(--bg-elevated);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.4);}
+  .tp-title{text-align:center;color:var(--ink);font-size:16px;font-weight:600;margin-bottom:14px;}
+  .tp-cols{display:flex;align-items:center;justify-content:center;gap:10px;direction:ltr;}
+  .tp-col{display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .tp-arrow{width:70px;height:42px;border:none;background:transparent;color:var(--gold);border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-user-select:none;user-select:none;}
+  .tp-arrow:active{background:rgba(201,163,86,.18);}
+  .tp-val{min-width:78px;text-align:center;font-size:52px;font-weight:700;color:var(--ink);line-height:1.1;font-variant-numeric:tabular-nums;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:6px 0;}
+  .tp-colon{font-size:44px;font-weight:700;color:var(--gold);padding-bottom:4px;}
+  .tp-ampm{display:flex;flex-direction:column;gap:8px;margin-left:8px;}
+  .tp-seg{width:54px;padding:10px 0;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink-dim);font-family:inherit;font-size:16px;cursor:pointer;touch-action:manipulation;}
+  .tp-seg.active{background:var(--gold);color:#1a1208;border-color:var(--gold);font-weight:700;}
+  .tp-quick{display:flex;justify-content:center;gap:8px;margin:16px 0 2px;direction:ltr;}
+  .tp-chip{min-width:52px;padding:7px 0;border-radius:18px;border:1px solid var(--line);background:transparent;color:var(--ink-dim);font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;}
+  .tp-chip.active{border-color:var(--gold);color:var(--gold);}
+  .tp-actions{display:flex;gap:12px;margin-top:18px;}
+  .tp-actions button{flex:1;padding:13px;border-radius:14px;font-family:inherit;font-size:15px;cursor:pointer;}
+  .tp-cancel{background:transparent;border:1px solid var(--line);color:var(--ink-dim);}
+  .tp-ok{background:var(--gold);border:none;color:#1a1208;font-weight:700;}
 </style>
 </head>
 <body>
@@ -1198,7 +1222,7 @@ function renderReminders(noPush){
       <div class="rem-icon">${r.icon}</div>
       <div class="rem-info">
         <div class="rem-title">${r.title}</div>
-        <input type="time" class="rem-time" value="${c.time||r.def}" onchange="changeReminderTime('${r.key}',this.value)">
+        <button class="rem-time" onclick="openTimePicker('${r.key}')">${fmt12(c.time||r.def)}</button>
       </div>
       <label class="switch"><input type="checkbox" ${c.on?'checked':''} onchange="toggleReminder('${r.key}',this)"><span class="slider"></span></label>
     </div>`;
@@ -1236,6 +1260,98 @@ async function toggleReminder(key,el){
     c.on=false; st[key]=c; saveRem(st); showToast('تم إيقاف التذكير');
   }
 }
+/* =====================================================
+   منتقي الوقت (بدل نافذة الأندرويد القديمة)
+   ===================================================== */
+function fmt12(time){
+  const p=String(time||'').split(':');
+  const h=Number(p[0])||0, m=Number(p[1])||0;
+  return String(h%12||12).padStart(2,'0')+':'+String(m).padStart(2,'0')+' '+(h>=12?'م':'ص');
+}
+let tp=null, tpTimer=null, tpRepeat=null;
+
+function tpArrow(unit,dir){
+  const d=dir>0?'M6 15l6-6 6 6':'M6 9l6 6 6-6';
+  return `<button class="tp-arrow" oncontextmenu="return false" onpointerdown="tpHoldStart('${unit}',${dir},event)" onpointerup="tpHoldStop()" onpointerleave="tpHoldStop()" onpointercancel="tpHoldStop()"><svg viewBox="0 0 24 24" width="26" height="26"><path d="${d}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+}
+function tpRender(){
+  if(!tp) return;
+  const H=document.getElementById('tpH'), M=document.getElementById('tpM');
+  if(H) H.textContent=String(tp.h12).padStart(2,'0');
+  if(M) M.textContent=String(tp.m).padStart(2,'0');
+  const am=document.getElementById('tpAM'), pm=document.getElementById('tpPM');
+  if(am) am.classList.toggle('active',!tp.pm);
+  if(pm) pm.classList.toggle('active',tp.pm);
+  document.querySelectorAll('.tp-chip').forEach(el=>el.classList.toggle('active',Number(el.dataset.min)===tp.m));
+}
+function tpStep(unit,dir){
+  if(!tp) return;
+  if(unit==='h'){ tp.h12=((tp.h12-1+dir+12)%12)+1; }
+  else { tp.m=(tp.m+dir+60)%60; }
+  tpRender();
+}
+function tpHoldStart(unit,dir,ev){
+  if(ev&&ev.preventDefault) ev.preventDefault();
+  tpHoldStop();
+  tpStep(unit,dir);
+  tpTimer=setTimeout(()=>{ tpRepeat=setInterval(()=>tpStep(unit,dir),110); },420);
+}
+function tpHoldStop(){
+  clearTimeout(tpTimer); clearInterval(tpRepeat);
+  tpTimer=null; tpRepeat=null;
+}
+function tpSetPm(v){ if(!tp) return; tp.pm=!!v; tpRender(); }
+function tpSetMin(n){ if(!tp) return; tp.m=n; tpRender(); }
+
+function openTimePicker(key){
+  const r=REMINDERS.find(x=>x.key===key); if(!r) return;
+  const st=getRem(); const c=st[key]||{on:false,time:r.def};
+  const parts=String(c.time||r.def).split(':');
+  const h=Number(parts[0])||0, m=Number(parts[1])||0;
+  tp={key, h12:(h%12)||12, m, pm:h>=12};
+  closeTimePickerDom();
+  const ov=document.createElement('div');
+  ov.className='tp-overlay'; ov.id='tpOverlay';
+  const chips=[0,15,30,45].map(n=>`<button class="tp-chip" data-min="${n}" onclick="tpSetMin(${n})">${String(n).padStart(2,'0')}</button>`).join('');
+  ov.innerHTML=`
+    <div class="tp-sheet">
+      <div class="tp-title">${r.icon} ${r.title}</div>
+      <div class="tp-cols">
+        <div class="tp-col">${tpArrow('h',1)}<div class="tp-val" id="tpH">--</div>${tpArrow('h',-1)}</div>
+        <div class="tp-colon">:</div>
+        <div class="tp-col">${tpArrow('m',1)}<div class="tp-val" id="tpM">--</div>${tpArrow('m',-1)}</div>
+        <div class="tp-ampm">
+          <button class="tp-seg" id="tpAM" onclick="tpSetPm(false)">ص</button>
+          <button class="tp-seg" id="tpPM" onclick="tpSetPm(true)">م</button>
+        </div>
+      </div>
+      <div class="tp-quick">${chips}</div>
+      <div class="tp-actions">
+        <button class="tp-cancel" onclick="closeTimePicker()">إلغاء</button>
+        <button class="tp-ok" onclick="confirmTimePicker()">تعيين</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click',e=>{ if(e.target===ov) closeTimePicker(); });
+  document.body.appendChild(ov);
+  tpRender();
+}
+function closeTimePickerDom(){
+  const old=document.getElementById('tpOverlay');
+  if(old&&old.remove) old.remove();
+}
+function closeTimePicker(){
+  tpHoldStop(); closeTimePickerDom(); tp=null;
+}
+async function confirmTimePicker(){
+  if(!tp) return;
+  const key=tp.key;
+  const h24=(tp.h12%12)+(tp.pm?12:0);
+  const time=String(h24).padStart(2,'0')+':'+String(tp.m).padStart(2,'0');
+  closeTimePicker();
+  await changeReminderTime(key,time);
+  renderReminders(true);
+}
+
 async function changeReminderTime(key,value){
   if(!value) return;
   const r=REMINDERS.find(x=>x.key===key);
