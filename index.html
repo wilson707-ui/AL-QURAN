@@ -637,7 +637,7 @@ function handleSWMessage(event){
       if(prog)prog.textContent='اكتمل التحميل ✓';
     }else if(btn){
       btn.textContent='⬇ إعادة المحاولة';btn.classList.remove('downloading');btn.disabled=false;
-      if(prog)prog.textContent='اكتمل جزئياً، اضغط لإكمال الباقي';
+      if(prog)prog.textContent=data.missing?`ناقص ${data.missing} ملف. اضغط لإكمال الباقي`:'اكتمل جزئياً، اضغط لإكمال الباقي';
     }
   }else if(data.type==='PAGES_DOWNLOAD_ERROR'){
     if(btn){btn.textContent='⬇ إعادة المحاولة';btn.classList.remove('downloading');btn.disabled=false;}
@@ -670,8 +670,8 @@ function handleSWMessage(event){
   }else if(data.type==='RECITER_DOWNLOAD_ERROR'){
     const rBtn=document.getElementById('dlbtn-'+data.reciterId);
     const rProg=document.getElementById('dlprog-'+data.reciterId);
-    if(rBtn){rBtn.textContent='⬇ إعادة المحاولة';rBtn.classList.remove('downloading');rBtn.disabled=false;}
-    if(rProg)rProg.textContent='تعذّر إكمال التحميل، تحقق من اتصال الإنترنت';
+    if(rBtn){rBtn.textContent='⬇ إكمال التحميل';rBtn.classList.remove('downloading');rBtn.disabled=false;}
+    if(rProg)rProg.textContent=data.missing?`تحمّل ${data.done} من ${data.total}. اضغط لإكمال الباقي (ناقص ${data.missing})`:'تعذّر إكمال التحميل، تحقق من اتصال الإنترنت';
     stopDownloadService();
   }
 }
@@ -1373,6 +1373,106 @@ async function testReminder(){
   }catch(e){ showToast('تعذّر إرسال الإشعار'); }
 }
 
+/* =====================================================
+   أدوات تحميل قوية: مهلة + إعادة محاولة + انتظار الإنترنت + جولات متعددة
+   ===================================================== */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let penaltyUntil = 0; // لو السيرفر قال "كثرت الطلبات" (429) نوقف الطلبات شوي
+
+async function waitForOnline(maxMs){
+  const start = Date.now();
+  while(navigator.onLine === false && Date.now() - start < maxMs){ await sleep(1000); }
+}
+
+async function robustFetch(url, opts){
+  opts = opts || {};
+  const tries = opts.tries || 5;
+  const timeoutMs = opts.timeoutMs || 20000;
+  const init = opts.init || {};
+  let lastErr;
+  for(let t=0; t<tries; t++){
+    if(penaltyUntil > Date.now()) await sleep(penaltyUntil - Date.now());
+    await waitForOnline(120000);
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), timeoutMs);
+    try{
+      const r = await fetch(url, Object.assign({}, init, {signal: ctrl.signal}));
+      clearTimeout(timer);
+      if(r.type === 'opaque' || r.ok) return r;
+      if(r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 425 && r.status !== 429){
+        const e = new Error('http ' + r.status); e.permanent = true; throw e;
+      }
+      let wait = Math.min(1000 * Math.pow(2, t), 15000);
+      const ra = Number(r.headers && r.headers.get('retry-after'));
+      if(ra > 0) wait = Math.max(wait, Math.min(ra * 1000, 30000));
+      if(r.status === 429) penaltyUntil = Math.max(penaltyUntil, Date.now() + wait);
+      lastErr = new Error('http ' + r.status);
+      if(t < tries - 1) await sleep(wait + Math.random() * 500);
+    }catch(e){
+      clearTimeout(timer);
+      if(e && e.permanent) throw e;
+      lastErr = e;
+      if(t < tries - 1) await sleep(Math.min(1000 * Math.pow(2, t), 15000) + Math.random() * 500);
+    }
+  }
+  throw lastErr || new Error('failed');
+}
+
+async function runPool(items, worker, concurrency){
+  const queue = items.slice();
+  const failed = [];
+  const run = async ()=>{
+    while(queue.length){
+      const it = queue.shift();
+      let ok = false;
+      try{ ok = await worker(it); }catch(e){ ok = false; }
+      if(!ok) failed.push(it);
+    }
+  };
+  await Promise.all(Array.from({length: Math.max(1, concurrency)}, run));
+  return failed;
+}
+
+async function runWithPasses(items, worker, concurrency, passes){
+  let pending = items;
+  for(let p=0; p<passes && pending.length; p++){
+    pending = await runPool(pending, worker, Math.max(1, concurrency - p));
+    if(pending.length && p < passes - 1) await sleep(3000 * (p + 1));
+  }
+  return pending; // اللي ما انحمل بعد كل الجولات
+}
+
+// نص الآيات للبحث: ملف مدمج داخل التطبيق (بدون إنترنت وبدون تحميل)
+let localAyahsPromise = null;
+function loadLocalAyahs(){
+  if(!localAyahsPromise){
+    localAyahsPromise = (async ()=>{
+      const urls = ['./quran-data/ayahs.json', './ayahs.json'];
+      for(const u of urls){
+        try{
+          const r = await fetch(u);
+          if(!r.ok) continue;
+          const arr = await r.json();
+          if(!Array.isArray(arr) || arr.length < 6200 || !Array.isArray(arr[0])) continue;
+          const names = {};
+          SURAHS_FULL.forEach(x => { names[x.num] = x.name; });
+          return arr.map(x => ({
+            surah: x[0],
+            surahName: names[x[0]] || '',
+            surahNameAr: 'سورة ' + (names[x[0]] || x[0]),
+            ayah: x[1],
+            page: x[2],
+            text: x[3],
+            textClean: removeTashkeel(x[3])
+          }));
+        }catch(e){}
+      }
+      return null;
+    })().then(res => { if(!res) localAyahsPromise = null; return res; });
+  }
+  return localAyahsPromise;
+}
+
 const tafsirCache={};
 async function showTafsir(verseKey){
   const[surahNum,ayahNum]=verseKey.split(':');
@@ -1382,8 +1482,7 @@ async function showTafsir(verseKey){
   box.innerHTML=`<span class="tafsir-loading">جاري تحميل التفسير...</span>`;
   if(tafsirCache[verseKey]){box.innerHTML=tafsirCache[verseKey]+shareBtnHtml(verseKey);return;}
   try{
-    const res=await fetch(`${TAFSIR_BASE}/ayah/${surahNum}:${ayahNum}/${TAFSIR_EDITION}`);
-    if(!res.ok)throw new Error('fail');
+    const res=await robustFetch(`${TAFSIR_BASE}/ayah/${surahNum}:${ayahNum}/${TAFSIR_EDITION}`,{tries:3,timeoutMs:12000});
     const json=await res.json();
     if(!json.data?.text)throw new Error('empty');
     const html=`<span class="tafsir-label">التفسير الميسر · آية ${ayahNum}</span>${json.data.text}`;
@@ -1578,44 +1677,46 @@ async function startTafsirDownload(){
   btn.disabled = true;
   prog.classList.add('show');
 
-  let done = 0;
+  const allKeys = [];
+  for(let s=1; s<=114; s++){
+    for(let a=1; a<=SURAH_AYAT_COUNTS[s-1]; a++) allKeys.push(`${s}:${a}`);
+  }
+  const have = ()=> { let n=0; for(const k of allKeys){ if(tafsirCache[k]) n++; } return n; };
+  const saveNow = ()=> { try{ localStorage.setItem('tafsir_data', JSON.stringify(tafsirCache)); return true; }catch(e){ return false; } };
 
-  try {
-    const BATCH = 20;
-    for(let s=1; s<=114; s++){
-      const ayatInSurah = SURAH_AYAT_COUNTS[s-1];
-      for(let a=1; a<=ayatInSurah; a+=BATCH){
-        const promises = [];
-        for(let i=a; i<Math.min(a+BATCH, ayatInSurah+1); i++){
-          const vk = `${s}:${i}`;
-          if(!tafsirCache[vk]){
-            promises.push(
-              fetch(`${TAFSIR_BASE}/ayah/${s}:${i}/${TAFSIR_EDITION}`)
-                .then(r=>r.json())
-                .then(json=>{
-                  if(json.data?.text){
-                    tafsirCache[vk]=`<span class="tafsir-label">التفسير الميسر · آية ${i}</span>${json.data.text}`;
-                  }
-                }).catch(()=>{})
-            );
-          }
-          done++;
-        }
-        await Promise.all(promises);
-        prog.textContent = `${done} / ${TOTAL_AYAT} آية`;
-        await new Promise(r=>setTimeout(r,100));
-      }
-    }
+  let added = 0;
+  const worker = async (vk)=>{
+    if(tafsirCache[vk]) return true;
+    try{
+      const r = await robustFetch(`${TAFSIR_BASE}/ayah/${vk}/${TAFSIR_EDITION}`, {tries:4, timeoutMs:15000});
+      const json = await r.json();
+      const text = json && json.data && json.data.text;
+      if(!text) return false;
+      tafsirCache[vk] = `<span class="tafsir-label">التفسير الميسر · آية ${vk.split(':')[1]}</span>${text}`;
+      added++;
+      if(added % 25 === 0) prog.textContent = `${have()} / ${TOTAL_AYAT} آية`;
+      if(added % 600 === 0) saveNow(); // حفظ جزئي، لو انقطع يكمل من حيث وقف
+      return true;
+    }catch(e){ return false; }
+  };
 
+  prog.textContent = `${have()} / ${TOTAL_AYAT} آية`;
+  const missing = await runWithPasses(allKeys.filter(k => !tafsirCache[k]), worker, 4, 3);
+  const haveNow = have();
+  prog.textContent = `${haveNow} / ${TOTAL_AYAT} آية`;
+  const saved = saveNow();
+
+  if(!missing.length && saved){
     localStorage.setItem('offline_tafsir','true');
-    localStorage.setItem('tafsir_data', JSON.stringify(tafsirCache));
     btn.outerHTML = `<span class="dl-btn downloaded">✓ محمّل أوفلاين</span>`;
     prog.textContent = 'اكتمل التحميل ✓';
-  } catch(err){
-    btn.textContent = '⬇ إعادة المحاولة';
+  }else{
+    btn.textContent = '⬇ إكمال التحميل';
     btn.classList.remove('downloading');
     btn.disabled = false;
-    prog.textContent = 'فشل التحميل';
+    prog.textContent = !saved
+      ? 'مساحة التخزين ممتلئة. فرّغ مساحة وحاول مرة ثانية'
+      : `تحمّل ${haveNow} من ${TOTAL_AYAT} آية. اضغط لإكمال الباقي`;
   }
 }
 
@@ -2639,7 +2740,7 @@ const SURAHS_INDEX = [
 ];
 
 function removeTashkeel(text){
-  return text.replace(/[ً-ٰٟۖ-ۜ۟-۪ۤۧۨ-ۭ]/g, '').trim();
+  return text.replace(/[ً-ٰٟۖ-ۜ۟-۪ۤۧۨ-ۭ]/g, '').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').trim();
 }
 
 let ayahsData = null;
@@ -2686,6 +2787,14 @@ function loadAyahsData(onProgress){
         return ayahsData;
       }
     }catch{}
+
+    // الملف المدمج داخل التطبيق: بدون إنترنت وبدون تحميل
+    const local = await loadLocalAyahs();
+    if(local){
+      ayahsData = local;
+      try{ localStorage.removeItem('ayahs_data_v1'); }catch{} // نفرّغ المساحة القديمة
+      return ayahsData;
+    }
 
     const total = 6236;
     const CONCURRENCY = 4; // 4 سور بالتوازي (كان 8، وهذا يضغط على السيرفر ويسبب الانقطاع)
@@ -2817,6 +2926,12 @@ async function performAyahSearch(q, surahHtml){
 
   const results = document.getElementById('searchResults');
   if(!results) return;
+
+  if(!ayahsData){
+    const local = await loadLocalAyahs();
+    if(local){ ayahsData = local; }
+    if(q !== currentSearchQuery) return;
+  }
 
   if(!ayahsData){
     results.innerHTML = surahHtml + `
