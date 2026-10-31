@@ -410,16 +410,25 @@ function globalAyahNumber(s,a){
   return n+a;
 }
 
+// تلاوات آية بآية من everyayah.com: الاسم بالشكل SSSAAA.mp3 (رقم السورة 3 خانات + رقم الآية 3 خانات)
+const EA_BASE='https://everyayah.com/data';
+const eaUrl = folder => (s,a) => `${EA_BASE}/${folder}/${String(s).padStart(3,'0')}${String(a).padStart(3,'0')}.mp3`;
 const RECITERS=[
   {id:'ar.alafasy',        name:'مشاري العفاسي',      ayahByAyah:true},
-  {id:'ar.abdulbasitmurattal', name:'عبدالباسط عبدالصمد', ayahByAyah:true},
+  {id:'ea.abdulbasit',     name:'عبدالباسط عبدالصمد', ayahByAyah:true, ayahUrl:eaUrl('Abdul_Basit_Murattal_64kbps')},
   {id:'ar.hudhaify',       name:'علي الحذيفي',         ayahByAyah:true},
-  {id:'ar.tablawy',        name:'محمد الطبلاوي',       ayahByAyah:true},
+  {id:'ea.minshawi',       name:'محمد صديق المنشاوي',  ayahByAyah:true, ayahUrl:eaUrl('Minshawy_Murattal_128kbps')},
+  {id:'ea.dosari',         name:'ياسر الدوسري',        ayahByAyah:true, ayahUrl:eaUrl('Yasser_Ad-Dussary_128kbps')},
   {id:'islam',             name:'إسلام صبحي ★',        ayahByAyah:false,
    surahUrl: s => `https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3,'0')}.mp3`},
 ];
 const AUDIO_BASE='https://cdn.islamic.network/quran/audio/128';
-let currentReciterId=localStorage.getItem('quran_reciter')||RECITERS[0].id;
+const LEGACY_RECITERS={'ar.abdulbasitmurattal':'ea.abdulbasit'}; // معرّف قديم → الجديد
+let currentReciterId=(()=>{
+  let id=localStorage.getItem('quran_reciter')||RECITERS[0].id;
+  if(LEGACY_RECITERS[id]) id=LEGACY_RECITERS[id];
+  return RECITERS.some(r=>r.id===id) ? id : RECITERS[0].id; // قارئ محذوف (مثل الطبلاوي) → الافتراضي
+})();
 
 let audioEl=null,isPlayingPage=false,pageQueue=[],pageQueueIdx=0,activeVerseKey=null;
 const app=document.getElementById('app');
@@ -441,6 +450,8 @@ const SVG={
 function ayahAudioUrl(s,a){
   // === الإصلاح: نحسب الرقم العام للآية (1 إلى 6236) بدل لزق رقم السورة مع الآية ===
   // cdn.islamic.network يرقّم الآيات تسلسلياً على مستوى القرآن كله، مو surah+ayah منفصلين
+  const rec=RECITERS.find(x=>x.id===currentReciterId);
+  if(rec && rec.ayahUrl) return rec.ayahUrl(s,a);
   return `${AUDIO_BASE}/${currentReciterId}/${globalAyahNumber(s,a)}.mp3`;
 }
 
