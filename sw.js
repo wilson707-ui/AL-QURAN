@@ -12,7 +12,7 @@
       داخل التطبيق أثناء التحميل.
 */
 
-const SHELL_CACHE = 'quran-shell-v3';
+const SHELL_CACHE = 'quran-shell-v4';
 const PAGES_CACHE = 'quran-pages-v1'; // نفس الاسم المستخدم داخل index.html
 const OFFLINE_CACHE = 'quran-offline-v1'; // ذاكرة الصوتيات، نفس الاسم المستخدم داخل index.html
 const SHELL_FILES = ['./', './index.html', './manifest.json'];
@@ -31,11 +31,15 @@ const pageUrl = n => `${RAW_BASE}/pages/${pad3(n)}.json`;
 
 /* ===== معلومات القرّاء والصوتيات — نفس البيانات المستخدمة داخل index.html ===== */
 const AUDIO_BASE = 'https://cdn.islamic.network/quran/audio/128';
+// تلاوات آية بآية من everyayah.com (SSSAAA.mp3)
+const EA_BASE = 'https://everyayah.com/data';
+const eaUrl = folder => (s, a) => `${EA_BASE}/${folder}/${String(s).padStart(3, '0')}${String(a).padStart(3, '0')}.mp3`;
 const RECITERS = {
   'ar.alafasy':              { ayahByAyah: true },
-  'ar.abdulbasitmurattal':   { ayahByAyah: true },
   'ar.hudhaify':             { ayahByAyah: true },
-  'ar.tablawy':              { ayahByAyah: true },
+  'ea.abdulbasit':           { ayahByAyah: true, ayahUrl: eaUrl('Abdul_Basit_Murattal_64kbps') },
+  'ea.minshawi':             { ayahByAyah: true, ayahUrl: eaUrl('Minshawy_Murattal_128kbps') },
+  'ea.dosari':               { ayahByAyah: true, ayahUrl: eaUrl('Yasser_Ad-Dussary_128kbps') },
   'islam': {
     ayahByAyah: false,
     surahUrl: s => `https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/${String(s).padStart(3, '0')}.mp3`
@@ -49,6 +53,8 @@ function globalAyahNumber(s, a) {
   return n + a;
 }
 function ayahAudioUrl(reciterId, s, a) {
+  const r = RECITERS[reciterId];
+  if (r && r.ayahUrl) return r.ayahUrl(s, a);
   return `${AUDIO_BASE}/${reciterId}/${globalAyahNumber(s, a)}.mp3`;
 }
 
@@ -69,6 +75,12 @@ self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => k !== SHELL_CACHE && k !== PAGES_CACHE && k !== OFFLINE_CACHE).map(k => caches.delete(k)));
+    try {
+      // نمسح صوت القرّاء المحذوفين (الطبلاوي والعبدالباسط القديم) عشان ما يأخذون مساحة
+      const oc = await caches.open(OFFLINE_CACHE);
+      const reqs = await oc.keys();
+      await Promise.all(reqs.filter(r => /\/ar\.(tablawy|abdulbasitmurattal)\//.test(r.url)).map(r => oc.delete(r)));
+    } catch (e) { /* مو مهم */ }
     await self.clients.claim();
   })());
 });
