@@ -550,11 +550,53 @@ function initSwipeNavigation(){
   }, {passive:true});
 }
 
+/* ===================== تشغيل التلاوة بالخلفية (أندرويد) =====================
+   أندرويد يجمّد التطبيق لما تقفل الشاشة أو تطلع منه، فتنقطع التلاوة بنهاية الآية الحالية.
+   لذلك نشغّل خدمة مقدّمة (إشعار تحكم) طول فترة التلاوة، فيبقى التطبيق شغال وتكمل الآيات. */
+let msState = 'none', msHandlersSet = false;
+function msPlugin(){ return isNativeApp() ? (nativePlugins().MediaSession || null) : null; }
+function msSetState(state){
+  const P = msPlugin();
+  if(!P || msState === state) return;
+  msState = state;
+  try{ const r = P.setPlaybackState({playbackState: state}); if(r && r.catch) r.catch(()=>{}); }catch(e){}
+}
+function msSetMeta(vk){
+  const P = msPlugin();
+  if(!P) return;
+  try{
+    const parts = vk.split(':');
+    const surah = SURAHS_FULL.find(x => x.num === Number(parts[0]));
+    const rec = RECITERS.find(x => x.id === currentReciterId);
+    const r = P.setMetadata({
+      title: `سورة ${surah ? surah.name : parts[0]} · آية ${parts[1]}`,
+      artist: rec ? rec.name : '',
+      album: 'زاد القرآن'
+    });
+    if(r && r.catch) r.catch(()=>{});
+  }catch(e){}
+}
+function msInitHandlers(){
+  const P = msPlugin();
+  if(!P || msHandlersSet) return;
+  msHandlersSet = true;
+  const set = (action, fn)=>{ try{ const r = P.setActionHandler({action}, fn); if(r && r.catch) r.catch(()=>{}); }catch(e){} };
+  set('play',  ()=>{ if(audioEl && activeVerseKey) audioEl.play().catch(()=>{}); });
+  set('pause', ()=>{ if(audioEl) audioEl.pause(); });
+  set('stop',  ()=>stopAudio());
+  set('nexttrack',     ()=>{ if(isPlayingPage && pageQueueIdx < pageQueue.length-1){ pageQueueIdx++; playVerse(pageQueue[pageQueueIdx]); } });
+  set('previoustrack', ()=>{ if(isPlayingPage && pageQueueIdx > 0){ pageQueueIdx--; playVerse(pageQueue[pageQueueIdx]); } });
+}
+
 function initAudio(){
   if(audioEl)return;
   audioEl=new Audio();
   audioEl.addEventListener('ended',onAudioEnded);
   audioEl.addEventListener('error',onAudioError);
+  // نخلي إشعار التحكم (والخدمة المقدّمة) يتبع حالة التشغيل الفعلية
+  audioEl.addEventListener('playing',()=>{ if(activeVerseKey) msSetState('playing'); });
+  audioEl.addEventListener('pause',()=>{ if(activeVerseKey && !audioEl.ended) msSetState('paused'); }); // نتجاهل توقف نهاية الآية
+  msInitHandlers();
 }
 
 function togglePlayPage(){
@@ -574,6 +616,7 @@ function playVerse(vk){
   const [s,a]=vk.split(':').map(Number);
   activeVerseKey=vk; highlightActive();
   setStatus('');
+  msSetMeta(vk);
 
   const reciter=RECITERS.find(r=>r.id===currentReciterId);
   if(reciter && !reciter.ayahByAyah){
@@ -613,6 +656,7 @@ function stopAudio(){
   if(audioEl){audioEl.pause();audioEl.src='';}
   isPlayingPage=false; activeVerseKey=null; pageQueue=[]; pageQueueIdx=0;
   clearHighlight(); updatePageBtn(); setStatus('');
+  msSetState('none');
 }
 
 function updatePageBtn(){
